@@ -404,13 +404,19 @@
         "autoDelayDetection": "Автоматик тоткарлык ачыклау",
         "autoDelayDetectionInterval": "Автоматик тоткарлык ачыклау интервалы",
         "defaultLatencyTest": "Тоткарлануны тикшерү сылтамасы (defaults)",
-        "defaultLatencyTimeout": "Тоткарлануның стандарт таймауты"
+        "defaultLatencyTimeout": "Тоткарлануның стандарт таймауты",
+        "webrtcLeakProtection": "WebRTC Leak Protection",
+        "smhnrEnabled": "SMHNR Protection",
+        "ipv6Block": "IPv6 Leak Protection"
       },
       "tooltips": {
         "autoCloseConnections": "Прокси төркеме яисә режимын үзгәрткәндә актив тоташуларны өзү",
         "enableBuiltinEnhanced": "Конфигурация файлы белән туры килә торган өстәмә оптимизация",
         "autoDelayDetection": "Фон режимында хәзерге төен тоткарлыгын периодик тикшерә",
-        "defaultLatencyTest": "Бу фәкать клиентның HTTP сораулары тесты өчен кулланыла, конфигурация файлына йогынты ясамый"
+        "defaultLatencyTest": "Бу фәкать клиентның HTTP сораулары тесты өчен кулланыла, конфигурация файлына йогынты ясамый",
+        "webrtcLeakProtection": "Force WebRTC traffic through the proxy to prevent IP leaks.",
+        "smhnrEnabled": "Enable SMHNR leak protection to prevent DNS-based tracking",
+        "ipv6Block": "Enable IPv6 leak protection. Some effects apply immediately; full effect requires a system restart."
       },
       "options": {
         "proxyLayoutColumns": {

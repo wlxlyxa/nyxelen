@@ -1,0 +1,274 @@
+
+> clash-verge@2.5.2 tauri
+> tauri dev
+
+        Info `tauri` dependency has workspace inheritance enabled. The features array won't be automatically rewritten. Expected features: [protocol-asset]
+     Running BeforeDevCommand (`pnpm run web:dev`)
+$ vite
+
+  [32m[1mVITE[22m v8.1.3[39m  [2mready in [0m[1m230[22m[2m[0m ms[22m
+
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://localhost:[1m3000[22m/[39m
+[2m  [32m➜[39m  [1mNetwork[22m[2m: use [22m[1m--host[22m[2m to expose[22m
+[2m01:36:16[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [optimizer] bundling dependencies...
+     Running DevCommand (`cargo  run --no-default-features --color always --`)
+        Info Watching E:\clash\wangzai-pc\src-tauri for changes...
+        Info Watching E:\clash\wangzai-pc\crates\clash-verge-draft for changes...
+        Info Watching E:\clash\wangzai-pc\crates\clash-verge-i18n for changes...
+        Info Watching E:\clash\wangzai-pc\crates\clash-verge-limiter for changes...
+        Info Watching E:\clash\wangzai-pc\crates\clash-verge-logging for changes...
+        Info Watching E:\clash\wangzai-pc\crates\clash-verge-signal for changes...
+        Info Watching E:\clash\wangzai-pc\crates\tauri-plugin-clash-verge-sysinfo for changes...
+[1m[93mwarning[0m[1m[97m: unused import: `license::*`[0m
+  [1m[96m--> [0msrc-tauri\src\cmd\mod.rs:50:9
+   [1m[96m|[0m
+[1m[96m50[0m [1m[96m|[0m pub use license::*;
+   [1m[96m|[0m         [1m[93m^^^^^^^^^^[0m
+   [1m[96m|[0m
+   [1m[96m= [0m[1m[97mnote[0m: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+[1m[93mwarning[0m[1m[97m: constant `TUN_ADAPTER_NAME_HINT` is never used[0m
+  [1m[96m--> [0msrc-tauri\src\cmd\ipv6_control.rs:21:7
+   [1m[96m|[0m
+[1m[96m21[0m [1m[96m|[0m const TUN_ADAPTER_NAME_HINT: &str = "Meta Tunnel";
+   [1m[96m|[0m       [1m[93m^^^^^^^^^^^^^^^^^^^^^[0m
+   [1m[96m|[0m
+   [1m[96m= [0m[1m[97mnote[0m: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+[1m[93mwarning[0m[1m[97m: method `get_core_pid` is never used[0m
+   [1m[96m--> [0msrc-tauri\src\core\manager\mod.rs:124:12
+    [1m[96m|[0m
+[1m[96m 83[0m [1m[96m|[0m impl CoreManager {
+    [1m[96m|[0m [1m[96m----------------[0m [1m[96mmethod in this implementation[0m
+[1m[96m...[0m
+[1m[96m124[0m [1m[96m|[0m     pub fn get_core_pid(&self) -> Option<u32> {
+    [1m[96m|[0m            [1m[93m^^^^^^^^^^^^[0m
+
+[1m[93mwarning[0m[1m[97m: constant `TUN_INTERFACE_ALIAS` is never used[0m
+  [1m[96m--> [0msrc-tauri\src\core\firewall_allow.rs:20:7
+   [1m[96m|[0m
+[1m[96m20[0m [1m[96m|[0m const TUN_INTERFACE_ALIAS: &str = "Meta";
+   [1m[96m|[0m       [1m[93m^^^^^^^^^^^^^^^^^^^[0m
+
+[1m[93mwarning[0m[1m[97m: constant `TUN_RULE_NAME` is never used[0m
+  [1m[96m--> [0msrc-tauri\src\core\firewall_allow.rs:22:7
+   [1m[96m|[0m
+[1m[96m22[0m [1m[96m|[0m const TUN_RULE_NAME: &str = "望仔-TUN-Allow";
+   [1m[96m|[0m       [1m[93m^^^^^^^^^^^^^[0m
+
+[1m[93mwarning[0m[1m[97m: function `allow_interface` is never used[0m
+  [1m[96m--> [0msrc-tauri\src\core\firewall_allow.rs:72:4
+   [1m[96m|[0m
+[1m[96m72[0m [1m[96m|[0m fn allow_interface(rule_name: &str, interface_alias: &str) -> Result<(), String> {
+   [1m[96m|[0m    [1m[93m^^^^^^^^^^^^^^^[0m
+
+[1m[93mwarning[0m[1m[97m: function `remove_rule` is never used[0m
+  [1m[96m--> [0msrc-tauri\src\core\firewall_allow.rs:84:4
+   [1m[96m|[0m
+[1m[96m84[0m [1m[96m|[0m fn remove_rule(rule_name: &str) {
+   [1m[96m|[0m    [1m[93m^^^^^^^^^^^[0m
+
+[1m[93mwarning[0m[1m[97m: function `allow_tun_interface` is never used[0m
+   [1m[96m--> [0msrc-tauri\src\core\firewall_allow.rs:123:8
+    [1m[96m|[0m
+[1m[96m123[0m [1m[96m|[0m pub fn allow_tun_interface() {
+    [1m[96m|[0m        [1m[93m^^^^^^^^^^^^^^^^^^^[0m
+
+[1m[93mwarning[0m[1m[97m: function `cleanup_rules` is never used[0m
+   [1m[96m--> [0msrc-tauri\src\core\firewall_allow.rs:140:8
+    [1m[96m|[0m
+[1m[96m140[0m [1m[96m|[0m pub fn cleanup_rules() {
+    [1m[96m|[0m        [1m[93m^^^^^^^^^^^^^[0m
+
+[1m[93mwarning[0m: `wangzai` (lib) generated 9 warnings (run `cargo fix --lib -p wangzai` to apply 1 suggestion)
+[1m[92m    Finished[0m `dev` profile [unoptimized + debuginfo] target(s) in 1.25s
+[1m[92m     Running[0m `E:\clash\wangzai-pc\target\debug\wangzai.exe`
+01:36:19.827 INFO  app_lib:279 T{main} [Setup] 开始应用初始化...
+01:36:19.827 WARN  app_lib::utils::init:307 T{clash-verge-runtime-6} [Setup] Failed to clean old logs: 系统找不到指定的路径。 (os error 3)
+01:36:19.830 INFO  app_lib::utils::init:309 T{clash-verge-runtime-6} [Setup] 后台日志清理任务完成
+01:36:19.830 INFO  app_lib::app_init:87 T{main} [Setup] 注册深层链接...
+01:36:19.831 INFO  app_lib::app_init:122 T{main} [Setup] 初始化窗口状态管理...
+01:36:19.831 INFO  app_lib::utils::resolve:168 T{main} [Setup] Initializing signal handlers...
+01:36:19.831 INFO  app_lib::utils::resolve:50 T{clash-verge-runtime-6} [ClashVergeRev] Version: 2.6.8
+01:36:19.831 INFO  app_lib:298 T{main} [Setup] 初始化已启动
+01:36:19.831 INFO  app_lib::event_handlers:333 T{main} [System] 应用就绪
+01:36:19.832 INFO  app_lib::utils::window_manager:304 T{clash-verge-runtime-6} [Window] 开始创建主窗口, should_create=true
+01:36:20.121 INFO  app_lib::utils::window_manager:312 T{clash-verge-runtime-6} [Window] 新窗口创建成功，等待前端渲染后显示
+01:36:24.013 WARN  app_lib::config::rule_mirror:138 T{clash-verge-runtime-1} [Config] 规则集镜像探测：String("reject") 所有候选地址均不可达/超时，保留原始地址
+01:36:25.254 WARN  app_lib::config::rule_mirror:138 T{clash-verge-runtime-0} [Config] 规则集镜像探测：String("bilibilihmt") 所有候选地址均不可达/超时，保留原始地址
+01:36:25.255 INFO  app_lib::config::config:137 T{clash-verge-runtime-0} [Config] 生成运行时配置成功
+01:36:25.320 INFO  app_lib::config::config:144 T{clash-verge-runtime-5} [Config] 开始验证配置
+01:36:25.320 INFO  app_lib::core::validate:407 T{clash-verge-runtime-5} [Validate] 生成临时配置文件用于验证
+01:36:25.383 INFO  app_lib::core::validate:340 T{clash-verge-runtime-7} [Validate] 开始验证配置文件: C:\Users\Administrator\AppData\Roaming\io.github.clash-verge-rev.clash-verge-rev\clash-verge-check.yaml
+01:36:25.383 INFO  app_lib::core::validate:343 T{clash-verge-runtime-7} [Validate] 使用内核: verge-mihomo
+01:36:25.383 INFO  app_lib::core::validate:348 T{clash-verge-runtime-7} [Validate] 验证目录: C:\Users\Administrator\AppData\Roaming\io.github.clash-verge-rev.clash-verge-rev
+01:36:25.679 INFO  app_lib::core::validate:366 T{clash-verge-runtime-2} [Validate] -------- 验证结果 --------
+01:36:25.679 INFO  app_lib::core::validate:392 T{clash-verge-runtime-2} [Validate] 验证成功
+01:36:25.679 INFO  app_lib::core::validate:393 T{clash-verge-runtime-2} [Validate] -------- 验证结束 --------
+01:36:25.680 INFO  app_lib::config::config:148 T{clash-verge-runtime-2} [Config] 配置验证成功
+01:36:25.683 INFO  app_lib::config::profiles:441 T{clash-verge-runtime-2} [Config] Profile 文件清理完成: 总文件数=44, 删除文件数=0, 失败数=0
+01:36:25.683 INFO  app_lib::core::tray:377 T{clash-verge-runtime-2} [Tray] 正在从AppHandle创建系统托盘
+01:36:25.693 INFO  app_lib::core::tray:158 T{clash-verge-runtime-2} [Tray] System tray created successfully
+01:36:25.693 INFO  app_lib::core::timer:132 T{clash-verge-runtime-2} [Timer] Refreshing timer tasks map, count: 6
+01:36:25.693 INFO  app_lib::core::timer:113 T{clash-verge-runtime-2} [Timer] Running overdue timer task immediately: uid=RzEhf0GZoL6a
+01:36:25.693 INFO  app_lib::core::timer:113 T{clash-verge-runtime-2} [Timer] Running overdue timer task immediately: uid=RfZoaVN7IpbY
+01:36:25.693 INFO  app_lib::core::timer:113 T{clash-verge-runtime-2} [Timer] Running overdue timer task immediately: uid=R8RRXkJhReRq
+01:36:25.693 INFO  app_lib::core::timer:113 T{clash-verge-runtime-2} [Timer] Running overdue timer task immediately: uid=RB5rUNABnfMK
+01:36:25.693 INFO  app_lib::core::timer:113 T{clash-verge-runtime-2} [Timer] Running overdue timer task immediately: uid=REptCrmng2vi
+01:36:25.693 INFO  app_lib::core::timer:113 T{clash-verge-runtime-2} [Timer] Running overdue timer task immediately: uid=Retgg9HIcYsh
+01:36:25.693 INFO  app_lib::core::timer:119 T{clash-verge-runtime-2} [Timer] Timer initialization completed
+01:36:25.693 INFO  app_lib::utils::resolve:145 T{clash-verge-runtime-2} [Setup] Initializing silent updater...
+01:36:25.693 INFO  app_lib::core::manager::state:26 T{clash-verge-runtime-6} [Core] Starting core in sidecar mode
+01:36:25.693 INFO  app_lib::utils::resolve:164 T{clash-verge-runtime-2} [Setup] Silent updater initialized
+01:36:25.693 INFO  app_lib::core::updater:491 T{clash-verge-runtime-2} [System] Silent updater: background task started
+01:36:25.693 INFO  app_lib::core::timer:329 T{clash-verge-runtime-1} [Timer] Starting timer task: uid=RzEhf0GZoL6a
+01:36:25.693 INFO  app_lib::core::timer:329 T{clash-verge-runtime-1} [Timer] Starting timer task: uid=RfZoaVN7IpbY
+01:36:25.693 INFO  app_lib::core::timer:329 T{clash-verge-runtime-1} [Timer] Starting timer task: uid=R8RRXkJhReRq
+01:36:25.693 INFO  app_lib::core::timer:329 T{clash-verge-runtime-1} [Timer] Starting timer task: uid=RB5rUNABnfMK
+01:36:25.693 INFO  app_lib::core::timer:329 T{clash-verge-runtime-1} [Timer] Starting timer task: uid=REptCrmng2vi
+01:36:25.693 INFO  app_lib::core::timer:329 T{clash-verge-runtime-1} [Timer] Starting timer task: uid=Retgg9HIcYsh
+01:36:30.701 INFO  app_lib::feat::profile:196 T{clash-verge-runtime-6} [Config] [订阅更新] 开始更新订阅 R8RRXkJhReRq
+01:36:30.701 INFO  app_lib::feat::profile:196 T{clash-verge-runtime-5} [Config] [订阅更新] 开始更新订阅 REptCrmng2vi
+01:36:30.701 INFO  app_lib::feat::profile:196 T{clash-verge-runtime-7} [Config] [订阅更新] 开始更新订阅 RB5rUNABnfMK
+01:36:30.701 INFO  app_lib::feat::profile:196 T{clash-verge-runtime-1} [Config] [订阅更新] 开始更新订阅 RfZoaVN7IpbY
+01:36:30.701 INFO  app_lib::feat::profile:196 T{clash-verge-runtime-0} [Config] [订阅更新] 开始更新订阅 RzEhf0GZoL6a
+01:36:30.701 INFO  app_lib::feat::profile:196 T{clash-verge-runtime-4} [Config] [订阅更新] 开始更新订阅 Retgg9HIcYsh
+01:36:30.702 INFO  app_lib::feat::profile:82 T{clash-verge-runtime-6} [Config] [订阅更新] R8RRXkJhReRq 是远程订阅，URL: http://103.85.27.125:2096/sub/***?format=***
+01:36:30.702 INFO  app_lib::feat::profile:82 T{clash-verge-runtime-7} [Config] [订阅更新] RB5rUNABnfMK 是远程订阅，URL: http://45.154.14.130:2096/sub/00001?format=***
+01:36:30.702 INFO  app_lib::feat::profile:82 T{clash-verge-runtime-5} [Config] [订阅更新] REptCrmng2vi 是远程订阅，URL: http://103.85.27.125:2096/sub/FS4vLIyx?format=***
+01:36:30.702 INFO  app_lib::feat::profile:82 T{clash-verge-runtime-0} [Config] [订阅更新] RzEhf0GZoL6a 是远程订阅，URL: http://103.85.27.125:2096/sub/***?format=***
+01:36:30.702 INFO  app_lib::feat::profile:82 T{clash-verge-runtime-1} [Config] [订阅更新] RfZoaVN7IpbY 是远程订阅，URL: http://203.248.94.106:2096/sub/***?format=***
+01:36:30.702 INFO  app_lib::feat::profile:107 T{clash-verge-runtime-6} [Config] [订阅更新] 开始下载新的订阅内容
+01:36:30.702 INFO  app_lib::feat::profile:82 T{clash-verge-runtime-4} [Config] [订阅更新] Retgg9HIcYsh 是远程订阅，URL: https://sanshi30.ccwu.cc/sub?token=***&clash
+01:36:30.702 INFO  app_lib::feat::profile:107 T{clash-verge-runtime-7} [Config] [订阅更新] 开始下载新的订阅内容
+01:36:30.702 INFO  app_lib::feat::profile:107 T{clash-verge-runtime-5} [Config] [订阅更新] 开始下载新的订阅内容
+01:36:30.702 INFO  app_lib::feat::profile:107 T{clash-verge-runtime-4} [Config] [订阅更新] 开始下载新的订阅内容
+01:36:30.702 INFO  app_lib::feat::profile:107 T{clash-verge-runtime-1} [Config] [订阅更新] 开始下载新的订阅内容
+01:36:30.702 INFO  app_lib::feat::profile:107 T{clash-verge-runtime-0} [Config] [订阅更新] 开始下载新的订阅内容
+01:36:30.811 WARN  app_lib::feat::profile:129 T{clash-verge-runtime-4} [Config] Warning: [订阅更新] 正常更新失败: failed to fetch remote profile，尝试使用Clash代理更新
+01:36:30.811 WARN  app_lib::feat::profile:129 T{clash-verge-runtime-7} [Config] Warning: [订阅更新] 正常更新失败: failed to fetch remote profile，尝试使用Clash代理更新
+01:36:30.811 WARN  app_lib::feat::profile:129 T{clash-verge-runtime-3} [Config] Warning: [订阅更新] 正常更新失败: failed to fetch remote profile，尝试使用Clash代理更新
+01:36:30.811 WARN  app_lib::feat::profile:129 T{clash-verge-runtime-1} [Config] Warning: [订阅更新] 正常更新失败: failed to fetch remote profile，尝试使用Clash代理更新
+01:36:30.811 WARN  app_lib::feat::profile:129 T{clash-verge-runtime-0} [Config] Warning: [订阅更新] 正常更新失败: failed to fetch remote profile，尝试使用Clash代理更新
+01:36:30.811 WARN  app_lib::feat::profile:129 T{clash-verge-runtime-6} [Config] Warning: [订阅更新] 正常更新失败: failed to fetch remote profile，尝试使用Clash代理更新
+01:36:30.812 WARN  app_lib::feat::profile:151 T{clash-verge-runtime-7} [Config] Warning: [订阅更新] Clash代理更新失败: failed to fetch remote profile with status 502 Bad Gateway，尝试使用系统代理更新
+01:36:30.812 WARN  app_lib::feat::profile:151 T{clash-verge-runtime-3} [Config] Warning: [订阅更新] Clash代理更新失败: failed to fetch remote profile with status 502 Bad Gateway，尝试使用系统代理更新
+01:36:30.812 WARN  app_lib::feat::profile:151 T{clash-verge-runtime-1} [Config] Warning: [订阅更新] Clash代理更新失败: failed to fetch remote profile with status 502 Bad Gateway，尝试使用系统代理更新
+01:36:30.812 WARN  app_lib::feat::profile:151 T{clash-verge-runtime-5} [Config] Warning: [订阅更新] Clash代理更新失败: failed to fetch remote profile with status 502 Bad Gateway，尝试使用系统代理更新
+01:36:30.812 WARN  app_lib::feat::profile:151 T{clash-verge-runtime-6} [Config] Warning: [订阅更新] Clash代理更新失败: failed to fetch remote profile with status 502 Bad Gateway，尝试使用系统代理更新
+01:36:30.919 WARN  app_lib::feat::profile:173 T{clash-verge-runtime-7} [Config] Warning: [订阅更新] 系统代理更新失败: failed to fetch remote profile，所有重试均已失败
+01:36:30.919 WARN  app_lib::feat::profile:173 T{clash-verge-runtime-6} [Config] Warning: [订阅更新] 系统代理更新失败: failed to fetch remote profile，所有重试均已失败
+01:36:30.919 WARN  app_lib::feat::profile:173 T{clash-verge-runtime-0} [Config] Warning: [订阅更新] 系统代理更新失败: failed to fetch remote profile，所有重试均已失败
+01:36:30.919 WARN  app_lib::feat::profile:173 T{clash-verge-runtime-5} [Config] Warning: [订阅更新] 系统代理更新失败: failed to fetch remote profile，所有重试均已失败
+01:36:30.919 WARN  app_lib::feat::profile:151 T{clash-verge-runtime-3} [Config] Warning: [订阅更新] Clash代理更新失败: failed to fetch remote profile，尝试使用系统代理更新
+01:36:30.919 WARN  app_lib::feat::profile:173 T{clash-verge-runtime-1} [Config] Warning: [订阅更新] 系统代理更新失败: failed to fetch remote profile，所有重试均已失败
+01:36:30.919 INFO  app_lib::core::timer:392 T{clash-verge-runtime-7} [Timer] Timer task completed for uid: REptCrmng2vi (took 217ms)
+01:36:30.919 INFO  app_lib::core::timer:392 T{clash-verge-runtime-0} [Timer] Timer task completed for uid: RfZoaVN7IpbY (took 217ms)
+01:36:30.919 INFO  app_lib::feat::profile:207 T{clash-verge-runtime-6} [Config] [订阅更新] 更新内核配置
+01:36:30.919 INFO  app_lib::core::timer:392 T{clash-verge-runtime-5} [Timer] Timer task completed for uid: RB5rUNABnfMK (took 217ms)
+01:36:30.919 INFO  app_lib::core::timer:392 T{clash-verge-runtime-1} [Timer] Timer task completed for uid: RzEhf0GZoL6a (took 217ms)
+01:36:30.984 WARN  app_lib::config::rule_mirror:138 T{clash-verge-runtime-3} [Config] 规则集镜像探测：String("reject") 所有候选地址均不可达/超时，保留原始地址
+01:36:30.984 WARN  app_lib::config::rule_mirror:138 T{clash-verge-runtime-3} [Config] 规则集镜像探测：String("bilibilihmt") 所有候选地址均不可达/超时，保留原始地址
+01:36:30.984 INFO  app_lib::core::validate:407 T{clash-verge-runtime-3} [Validate] 生成临时配置文件用于验证
+01:36:31.027 WARN  app_lib::feat::profile:173 T{clash-verge-runtime-5} [Config] Warning: [订阅更新] 系统代理更新失败: failed to fetch remote profile，所有重试均已失败
+01:36:31.027 INFO  app_lib::core::timer:392 T{clash-verge-runtime-5} [Timer] Timer task completed for uid: Retgg9HIcYsh (took 326ms)
+01:36:31.043 INFO  app_lib::core::validate:340 T{clash-verge-runtime-5} [Validate] 开始验证配置文件: C:\Users\Administrator\AppData\Roaming\io.github.clash-verge-rev.clash-verge-rev\clash-verge-check.yaml
+01:36:31.043 INFO  app_lib::core::validate:343 T{clash-verge-runtime-5} [Validate] 使用内核: verge-mihomo
+01:36:31.043 INFO  app_lib::core::validate:348 T{clash-verge-runtime-5} [Validate] 验证目录: C:\Users\Administrator\AppData\Roaming\io.github.clash-verge-rev.clash-verge-rev
+01:36:31.339 INFO  app_lib::core::validate:366 T{clash-verge-runtime-5} [Validate] -------- 验证结果 --------
+01:36:31.339 INFO  app_lib::core::validate:392 T{clash-verge-runtime-5} [Validate] 验证成功
+01:36:31.339 INFO  app_lib::core::validate:393 T{clash-verge-runtime-5} [Validate] -------- 验证结束 --------
+01:36:32.011 INFO  app_lib::core::firewall_allow:102 T{clash-verge-runtime-2} [Core] 已添加内核进程防火墙放行规则: E:\clash\wangzai-pc\target\debug\verge-mihomo.exe
+01:36:32.011 INFO  app_lib::core::manager::lifecycle:39 T{clash-verge-runtime-2} [Core] start_core called while a core is running; treated as no-op
+01:36:32.011 INFO  app_lib::core::watchdog:34 T{clash-verge-runtime-2} [Core] 网络防泄漏看门狗已启动
+01:36:32.056 INFO  app_lib::core::sysopt:88 T{clash-verge-runtime-4} [Core] Refreshing system proxy guard...
+01:36:32.056 INFO  app_lib::core::sysopt:91 T{clash-verge-runtime-4} [Core] System proxy is disabled.
+01:36:32.708 INFO  app_lib::core::manager::config:143 T{clash-verge-runtime-0} [Core] Configuration applied
+01:36:32.708 INFO  app_lib::feat::profile:210 T{clash-verge-runtime-0} [Config] [订阅更新] 更新成功
+01:36:32.708 INFO  app_lib::core::timer:392 T{clash-verge-runtime-0} [Timer] Timer task completed for uid: R8RRXkJhReRq (took 2007ms)
+01:36:35.708 INFO  app_lib::core::updater:424 T{clash-verge-runtime-1} [System] Silent updater: checking for updates...
+01:36:36.246 WARN  app_lib::core::updater:434 T{clash-verge-runtime-1} [System] Silent updater: check failed: error sending request for url (https://github.com/wlxlyxa/wangzai/releases/download/updater/update.json)
+01:36:36.246 WARN  app_lib::core::updater:497 T{clash-verge-runtime-1} [System] Silent updater: cycle error: error sending request for url (https://github.com/wlxlyxa/wangzai/releases/download/updater/update.json)
+01:36:38.334 INFO  app_lib::utils::dirs:248 T{clash-verge-runtime-3} [File] Removed file: "C:\\Users\\Administrator\\AppData\\Roaming\\io.github.clash-verge-rev.clash-verge-rev\\profiles\\RD5AuFdpWnL8.yaml"
+01:36:38.335 INFO  app_lib::utils::dirs:248 T{clash-verge-runtime-3} [File] Removed file: "C:\\Users\\Administrator\\AppData\\Roaming\\io.github.clash-verge-rev.clash-verge-rev\\profiles\\miCbWKivO6Nj.yaml"
+01:36:38.335 INFO  app_lib::utils::dirs:248 T{clash-verge-runtime-3} [File] Removed file: "C:\\Users\\Administrator\\AppData\\Roaming\\io.github.clash-verge-rev.clash-verge-rev\\profiles\\sykhNruZ5pdn.js"
+01:36:38.335 INFO  app_lib::utils::dirs:248 T{clash-verge-runtime-3} [File] Removed file: "C:\\Users\\Administrator\\AppData\\Roaming\\io.github.clash-verge-rev.clash-verge-rev\\profiles\\r6pe1dcj5aB1.yaml"
+01:36:38.336 INFO  app_lib::utils::dirs:248 T{clash-verge-runtime-3} [File] Removed file: "C:\\Users\\Administrator\\AppData\\Roaming\\io.github.clash-verge-rev.clash-verge-rev\\profiles\\pBLulPJZI2zy.yaml"
+01:36:38.336 INFO  app_lib::utils::dirs:248 T{clash-verge-runtime-3} [File] Removed file: "C:\\Users\\Administrator\\AppData\\Roaming\\io.github.clash-verge-rev.clash-verge-rev\\profiles\\g0KrQmLcoBAn.yaml"
+01:36:40.745 INFO  app_lib::utils::dirs:248 T{clash-verge-runtime-4} [File] Removed file: "C:\\Users\\Administrator\\AppData\\Roaming\\io.github.clash-verge-rev.clash-verge-rev\\profiles\\RB5rUNABnfMK.yaml"
+01:36:40.746 INFO  app_lib::utils::dirs:248 T{clash-verge-runtime-4} [File] Removed file: "C:\\Users\\Administrator\\AppData\\Roaming\\io.github.clash-verge-rev.clash-verge-rev\\profiles\\mHybpg5ONzRL.yaml"
+01:36:40.746 INFO  app_lib::utils::dirs:248 T{clash-verge-runtime-4} [File] Removed file: "C:\\Users\\Administrator\\AppData\\Roaming\\io.github.clash-verge-rev.clash-verge-rev\\profiles\\sRx6PXWTEh8D.js"
+01:36:40.746 INFO  app_lib::utils::dirs:248 T{clash-verge-runtime-4} [File] Removed file: "C:\\Users\\Administrator\\AppData\\Roaming\\io.github.clash-verge-rev.clash-verge-rev\\profiles\\rYgNHhuZKW2u.yaml"
+01:36:40.747 INFO  app_lib::utils::dirs:248 T{clash-verge-runtime-4} [File] Removed file: "C:\\Users\\Administrator\\AppData\\Roaming\\io.github.clash-verge-rev.clash-verge-rev\\profiles\\prbtjo3gr7j2.yaml"
+01:36:40.747 INFO  app_lib::utils::dirs:248 T{clash-verge-runtime-4} [File] Removed file: "C:\\Users\\Administrator\\AppData\\Roaming\\io.github.clash-verge-rev.clash-verge-rev\\profiles\\gAd7hzFFtdqB.yaml"
+01:36:40.878 INFO  app_lib::core::timer:132 T{clash-verge-runtime-2} [Timer] Refreshing timer tasks map, count: 5
+01:36:42.849 INFO  app_lib::utils::dirs:248 T{clash-verge-runtime-3} [File] Removed file: "C:\\Users\\Administrator\\AppData\\Roaming\\io.github.clash-verge-rev.clash-verge-rev\\profiles\\REptCrmng2vi.yaml"
+01:36:42.849 INFO  app_lib::utils::dirs:248 T{clash-verge-runtime-3} [File] Removed file: "C:\\Users\\Administrator\\AppData\\Roaming\\io.github.clash-verge-rev.clash-verge-rev\\profiles\\m5onQ4IVwkGV.yaml"
+01:36:42.850 INFO  app_lib::utils::dirs:248 T{clash-verge-runtime-3} [File] Removed file: "C:\\Users\\Administrator\\AppData\\Roaming\\io.github.clash-verge-rev.clash-verge-rev\\profiles\\sJcBWe8FtzzE.js"
+01:36:42.850 INFO  app_lib::utils::dirs:248 T{clash-verge-runtime-3} [File] Removed file: "C:\\Users\\Administrator\\AppData\\Roaming\\io.github.clash-verge-rev.clash-verge-rev\\profiles\\reideoKBolnf.yaml"
+01:36:42.850 INFO  app_lib::utils::dirs:248 T{clash-verge-runtime-3} [File] Removed file: "C:\\Users\\Administrator\\AppData\\Roaming\\io.github.clash-verge-rev.clash-verge-rev\\profiles\\p47DPtHQvStV.yaml"
+01:36:42.851 INFO  app_lib::utils::dirs:248 T{clash-verge-runtime-3} [File] Removed file: "C:\\Users\\Administrator\\AppData\\Roaming\\io.github.clash-verge-rev.clash-verge-rev\\profiles\\gEz06B4RvTRn.yaml"
+01:36:42.989 INFO  app_lib::core::timer:132 T{clash-verge-runtime-2} [Timer] Refreshing timer tasks map, count: 4
+01:36:44.903 INFO  app_lib::utils::dirs:248 T{clash-verge-runtime-2} [File] Removed file: "C:\\Users\\Administrator\\AppData\\Roaming\\io.github.clash-verge-rev.clash-verge-rev\\profiles\\Retgg9HIcYsh.yaml"
+01:36:44.903 INFO  app_lib::utils::dirs:248 T{clash-verge-runtime-2} [File] Removed file: "C:\\Users\\Administrator\\AppData\\Roaming\\io.github.clash-verge-rev.clash-verge-rev\\profiles\\mqssRdOnh6xq.yaml"
+01:36:44.904 INFO  app_lib::utils::dirs:248 T{clash-verge-runtime-2} [File] Removed file: "C:\\Users\\Administrator\\AppData\\Roaming\\io.github.clash-verge-rev.clash-verge-rev\\profiles\\sSIxKOhunq62.js"
+01:36:44.904 INFO  app_lib::utils::dirs:248 T{clash-verge-runtime-2} [File] Removed file: "C:\\Users\\Administrator\\AppData\\Roaming\\io.github.clash-verge-rev.clash-verge-rev\\profiles\\rtWuusrCNL5y.yaml"
+01:36:44.905 INFO  app_lib::utils::dirs:248 T{clash-verge-runtime-2} [File] Removed file: "C:\\Users\\Administrator\\AppData\\Roaming\\io.github.clash-verge-rev.clash-verge-rev\\profiles\\pJqnx5h71nsj.yaml"
+01:36:44.905 INFO  app_lib::utils::dirs:248 T{clash-verge-runtime-2} [File] Removed file: "C:\\Users\\Administrator\\AppData\\Roaming\\io.github.clash-verge-rev.clash-verge-rev\\profiles\\gWnBi0X5hDLu.yaml"
+01:36:45.040 INFO  app_lib::core::timer:132 T{clash-verge-runtime-2} [Timer] Refreshing timer tasks map, count: 3
+01:36:46.855 INFO  app_lib::utils::dirs:248 T{clash-verge-runtime-3} [File] Removed file: "C:\\Users\\Administrator\\AppData\\Roaming\\io.github.clash-verge-rev.clash-verge-rev\\profiles\\RzEhf0GZoL6a.yaml"
+01:36:46.855 INFO  app_lib::utils::dirs:248 T{clash-verge-runtime-3} [File] Removed file: "C:\\Users\\Administrator\\AppData\\Roaming\\io.github.clash-verge-rev.clash-verge-rev\\profiles\\mJvn4PKcyIGp.yaml"
+01:36:46.855 INFO  app_lib::utils::dirs:248 T{clash-verge-runtime-3} [File] Removed file: "C:\\Users\\Administrator\\AppData\\Roaming\\io.github.clash-verge-rev.clash-verge-rev\\profiles\\sq68NQo7HzGn.js"
+01:36:46.856 INFO  app_lib::utils::dirs:248 T{clash-verge-runtime-3} [File] Removed file: "C:\\Users\\Administrator\\AppData\\Roaming\\io.github.clash-verge-rev.clash-verge-rev\\profiles\\rT0fa00n3Gfb.yaml"
+01:36:46.856 INFO  app_lib::utils::dirs:248 T{clash-verge-runtime-3} [File] Removed file: "C:\\Users\\Administrator\\AppData\\Roaming\\io.github.clash-verge-rev.clash-verge-rev\\profiles\\paV2Z7BqJzmy.yaml"
+01:36:46.856 INFO  app_lib::utils::dirs:248 T{clash-verge-runtime-3} [File] Removed file: "C:\\Users\\Administrator\\AppData\\Roaming\\io.github.clash-verge-rev.clash-verge-rev\\profiles\\gbyPauwLgRED.yaml"
+01:36:46.996 INFO  app_lib::core::timer:132 T{clash-verge-runtime-2} [Timer] Refreshing timer tasks map, count: 2
+01:36:48.992 INFO  app_lib::utils::dirs:248 T{clash-verge-runtime-6} [File] Removed file: "C:\\Users\\Administrator\\AppData\\Roaming\\io.github.clash-verge-rev.clash-verge-rev\\profiles\\RfZoaVN7IpbY.yaml"
+01:36:48.993 INFO  app_lib::utils::dirs:248 T{clash-verge-runtime-6} [File] Removed file: "C:\\Users\\Administrator\\AppData\\Roaming\\io.github.clash-verge-rev.clash-verge-rev\\profiles\\mkZOrJ73dtfM.yaml"
+01:36:48.993 INFO  app_lib::utils::dirs:248 T{clash-verge-runtime-6} [File] Removed file: "C:\\Users\\Administrator\\AppData\\Roaming\\io.github.clash-verge-rev.clash-verge-rev\\profiles\\swbAu3Een1CG.js"
+01:36:48.994 INFO  app_lib::utils::dirs:248 T{clash-verge-runtime-6} [File] Removed file: "C:\\Users\\Administrator\\AppData\\Roaming\\io.github.clash-verge-rev.clash-verge-rev\\profiles\\r0mGPZcTjxu0.yaml"
+01:36:48.994 INFO  app_lib::utils::dirs:248 T{clash-verge-runtime-6} [File] Removed file: "C:\\Users\\Administrator\\AppData\\Roaming\\io.github.clash-verge-rev.clash-verge-rev\\profiles\\p15e7IKDylSI.yaml"
+01:36:48.994 INFO  app_lib::utils::dirs:248 T{clash-verge-runtime-6} [File] Removed file: "C:\\Users\\Administrator\\AppData\\Roaming\\io.github.clash-verge-rev.clash-verge-rev\\profiles\\gacclDi8CzGo.yaml"
+01:36:49.125 INFO  app_lib::core::timer:132 T{clash-verge-runtime-6} [Timer] Refreshing timer tasks map, count: 1
+01:36:50.909 INFO  app_lib::utils::dirs:248 T{clash-verge-runtime-2} [File] Removed file: "C:\\Users\\Administrator\\AppData\\Roaming\\io.github.clash-verge-rev.clash-verge-rev\\profiles\\R8RRXkJhReRq.yaml"
+01:36:50.910 INFO  app_lib::utils::dirs:248 T{clash-verge-runtime-2} [File] Removed file: "C:\\Users\\Administrator\\AppData\\Roaming\\io.github.clash-verge-rev.clash-verge-rev\\profiles\\msH1gxfQX5Un.yaml"
+01:36:50.910 INFO  app_lib::utils::dirs:248 T{clash-verge-runtime-2} [File] Removed file: "C:\\Users\\Administrator\\AppData\\Roaming\\io.github.clash-verge-rev.clash-verge-rev\\profiles\\sKLetY7kobY0.js"
+01:36:50.911 INFO  app_lib::utils::dirs:248 T{clash-verge-runtime-2} [File] Removed file: "C:\\Users\\Administrator\\AppData\\Roaming\\io.github.clash-verge-rev.clash-verge-rev\\profiles\\rox5XuEJKZKb.yaml"
+01:36:50.911 INFO  app_lib::utils::dirs:248 T{clash-verge-runtime-2} [File] Removed file: "C:\\Users\\Administrator\\AppData\\Roaming\\io.github.clash-verge-rev.clash-verge-rev\\profiles\\pWn6l83pAaHI.yaml"
+01:36:50.912 INFO  app_lib::utils::dirs:248 T{clash-verge-runtime-2} [File] Removed file: "C:\\Users\\Administrator\\AppData\\Roaming\\io.github.clash-verge-rev.clash-verge-rev\\profiles\\gJIEKgtVggnl.yaml"
+01:36:51.069 ERROR app_lib::enhance::script:134 T{clash-verge-runtime-23} [[Config]] Script execution error: expected value at line 1 column 1. Script name: 
+01:36:51.079 ERROR app_lib::enhance::script:134 T{clash-verge-runtime-11} [[Config]] Script execution error: expected value at line 1 column 1. Script name: 
+01:36:51.079 INFO  app_lib::core::validate:407 T{clash-verge-runtime-5} [Validate] 生成临时配置文件用于验证
+01:36:51.146 INFO  app_lib::core::validate:340 T{clash-verge-runtime-1} [Validate] 开始验证配置文件: C:\Users\Administrator\AppData\Roaming\io.github.clash-verge-rev.clash-verge-rev\clash-verge-check.yaml
+01:36:51.146 INFO  app_lib::core::validate:343 T{clash-verge-runtime-1} [Validate] 使用内核: verge-mihomo
+01:36:51.146 INFO  app_lib::core::validate:348 T{clash-verge-runtime-1} [Validate] 验证目录: C:\Users\Administrator\AppData\Roaming\io.github.clash-verge-rev.clash-verge-rev
+01:36:51.210 INFO  app_lib::core::validate:366 T{clash-verge-runtime-1} [Validate] -------- 验证结果 --------
+01:36:51.210 INFO  app_lib::core::validate:392 T{clash-verge-runtime-1} [Validate] 验证成功
+01:36:51.210 INFO  app_lib::core::validate:393 T{clash-verge-runtime-1} [Validate] -------- 验证结束 --------
+01:36:51.379 INFO  app_lib::core::manager::config:143 T{clash-verge-runtime-1} [Core] Configuration applied
+01:36:51.379 INFO  app_lib::cmd::profile:176 T{clash-verge-runtime-1} [Cmd] [删除订阅] 发送配置变更通知: R8RRXkJhReRq
+01:36:51.379 INFO  app_lib::core::timer:132 T{clash-verge-runtime-1} [Timer] Refreshing timer tasks map, count: 0
+01:36:51.417 ERROR app_lib::enhance::script:134 T{clash-verge-runtime-15} [[Config]] Script execution error: expected value at line 1 column 1. Script name: 
+01:36:51.428 ERROR app_lib::enhance::script:134 T{clash-verge-runtime-20} [[Config]] Script execution error: expected value at line 1 column 1. Script name: 
+01:36:51.428 INFO  app_lib::core::validate:407 T{clash-verge-runtime-1} [Validate] 生成临时配置文件用于验证
+01:36:51.487 INFO  app_lib::core::validate:340 T{clash-verge-runtime-6} [Validate] 开始验证配置文件: C:\Users\Administrator\AppData\Roaming\io.github.clash-verge-rev.clash-verge-rev\clash-verge-check.yaml
+01:36:51.487 INFO  app_lib::core::validate:343 T{clash-verge-runtime-6} [Validate] 使用内核: verge-mihomo
+01:36:51.487 INFO  app_lib::core::validate:348 T{clash-verge-runtime-6} [Validate] 验证目录: C:\Users\Administrator\AppData\Roaming\io.github.clash-verge-rev.clash-verge-rev
+01:36:51.559 INFO  app_lib::core::validate:366 T{clash-verge-runtime-2} [Validate] -------- 验证结果 --------
+01:36:51.559 INFO  app_lib::core::validate:392 T{clash-verge-runtime-2} [Validate] 验证成功
+01:36:51.559 INFO  app_lib::core::validate:393 T{clash-verge-runtime-2} [Validate] -------- 验证结束 --------
+01:36:51.619 INFO  app_lib::core::manager::config:143 T{clash-verge-runtime-6} [Core] Configuration applied
+01:40:45.501 INFO  app_lib::utils::server:130 T{clash-verge-runtime-5} [Window] shutting down embedded server
+01:40:45.501 INFO  app_lib::config::config:243 T{clash-verge-runtime-5} [Config] save all draft data
+01:40:45.556 INFO  app_lib::config::config:263 T{clash-verge-runtime-2} [Config] save all draft data finished
+01:40:45.557 INFO  app_lib::feat::window:27 T{clash-verge-runtime-2} [System] 开始异步清理资源
+01:40:45.557 INFO  app_lib::feat::window:42 T{clash-verge-runtime-2} [System] 开始执行异步清理操作...
+01:40:45.557 INFO  app_lib::feat::window:71 T{clash-verge-runtime-4} [System] disable tun
+01:40:45.557 INFO  app_lib::feat::window:48 T{clash-verge-runtime-5} [Window] 系统代理未启用，跳过重置
+01:40:45.557 INFO  app_lib::feat::window:104 T{clash-verge-runtime-4} [System] stop core
+01:40:45.557 INFO  app_lib::core::manager::state:104 T{clash-verge-runtime-4} [Core] Stopping sidecar
+01:40:45.557 INFO  app_lib::feat::window:107 T{clash-verge-runtime-4} [Window] core已停止
+01:40:45.557 INFO  app_lib::feat::window:152 T{clash-verge-runtime-4} [System] 异步关闭操作完成 - 代理: true, 核心: true, DNS: true, 总体: true
+01:40:45.557 INFO  app_lib::feat::window:30 T{clash-verge-runtime-4} [System] 资源清理完成，退出代码: 0
+01:40:45.559 INFO  app_lib:456 T{main} [System] Application exited
+[0723/014045.564:ERROR:ui\gfx\win\window_impl.cc:172] Failed to unregister class Chrome_WidgetWin_0. Error = 1412

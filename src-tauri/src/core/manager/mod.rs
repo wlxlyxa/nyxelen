@@ -54,6 +54,7 @@ pub struct CoreManager {
 struct State {
     running_mode: ArcSwap<RunningMode>,
     child_sidecar: ArcSwapOption<CommandChild>,
+    intentional_stop: AtomicBool,
 }
 
 impl Default for State {
@@ -61,6 +62,7 @@ impl Default for State {
         Self {
             running_mode: ArcSwap::new(Arc::new(RunningMode::NotRunning)),
             child_sidecar: ArcSwapOption::new(None),
+            intentional_stop: AtomicBool::new(false),
         }
     }
 }
@@ -103,10 +105,25 @@ impl CoreManager {
         let state = self.state.load();
         state.running_mode.store(Arc::new(mode));
     }
+    pub fn set_intentional_stop(&self, val: bool) {
+        let state = self.state.load();
+        state.intentional_stop.store(val, Ordering::Release);
+    }
 
+    pub fn is_intentional_stop(&self) -> bool {
+        let state = self.state.load();
+        state.intentional_stop.load(Ordering::Acquire)
+    }
     pub fn set_running_child_sidecar(&self, child: CommandChild) {
         let state = self.state.load();
         state.child_sidecar.store(Some(Arc::new(child)));
+    }
+
+    /// 只读查看当前内核子进程的 PID，不影响 child_sidecar 的持有状态
+    /// （不同于 take_child_sidecar，这个不会把值取走清空）
+    pub fn get_core_pid(&self) -> Option<u32> {
+        let state = self.state.load();
+        state.child_sidecar.load().as_ref().map(|c| c.pid())
     }
 
     pub fn set_last_update(&self, time: Instant) {

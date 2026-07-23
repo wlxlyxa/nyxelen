@@ -4,6 +4,7 @@ mod config;
 mod encrypt;
 mod prfitem;
 pub mod profiles;
+pub mod rule_mirror;
 pub mod runtime;
 mod verge;
 

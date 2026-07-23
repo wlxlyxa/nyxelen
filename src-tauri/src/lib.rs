@@ -142,7 +142,16 @@ mod app_init {
             cmd::open_web_url,
             cmd::open_core_dir,
             cmd::get_portable_flag,
+            cmd::enable_webrtc_control,
+            cmd::disable_webrtc_control,
+            cmd::check_webrtc_control_status,
             cmd::get_network_interfaces,
+            cmd::enable_doh_block,
+            cmd::disable_doh_block,
+            cmd::check_doh_block_status,
+            cmd::enable_smhnr_protection,
+            cmd::disable_smhnr_protection,
+            cmd::check_smhnr_protection_status,
             cmd::get_system_hostname,
             cmd::restart_app,
             cmd::start_core,
@@ -214,6 +223,12 @@ mod app_init {
             cmd::restore_webdav_backup,
             cmd::get_unlock_items,
             cmd::check_media_unlock,
+            cmd::kill_switch_status,
+            cmd::kill_switch_test_block,
+            cmd::kill_switch_manual_unblock,
+            cmd::enable_ipv6_block,
+            cmd::disable_ipv6_block,
+            cmd::check_ipv6_block_status,
         ]
     }
 }
@@ -319,7 +334,7 @@ pub fn run() {
 
             #[cfg(target_os = "macos")]
             if let Some(window) = _app_handle.get_webview_window("main") {
-                let _ = window.set_title("Clash Verge");
+                let _ = window.set_title("望仔");
             }
         }
 

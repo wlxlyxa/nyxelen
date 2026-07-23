@@ -1,0 +1,11 @@
+<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+  <!-- 单色玻璃剔透版，供托盘使用；黑色部分在 macOS 模板图标模式下会自动适配深浅色系统主题 -->
+  <path d="M 20 40
+           L 34 22
+           A 20 20 0 0 1 47 36
+           L 20 40 Z"
+        fill="#000000" opacity="0.55"/>
+  <path d="M 12 44 A 27 27 0 0 1 53 35"
+        fill="none" stroke="#000000" stroke-width="3" stroke-linecap="round" opacity="0.55"/>
+  <circle cx="20" cy="40" r="6" fill="#000000"/>
+</svg>

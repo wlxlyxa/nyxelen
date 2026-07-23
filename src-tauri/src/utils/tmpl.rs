@@ -1,60 +1,301 @@
 //! Some config file template
-
 /// template for new a profile item
 pub const ITEM_LOCAL: &str = "# Profile Template for Clash Verge
-
 proxies: []
-
 proxy-groups: []
-
 rules: []
 ";
-
 /// enhanced profile
 pub const ITEM_MERGE: &str = "# Profile Enhancement Merge Template for Clash Verge
-
 profile:
   store-selected: true
 ";
-
 pub const ITEM_MERGE_EMPTY: &str = "# Profile Enhancement Merge Template for Clash Verge
-
 ";
-
 /// enhanced profile
-pub const ITEM_SCRIPT: &str = "// Define main function (script entry)
+/// 望仔 · 默认全局脚本：DNS 防泄露 + 分流规则 + TUN 配置
+/// 只要用户没有单独创建过 uid 为 "Script" 的全局脚本条目，
+/// 这份内容就会在每次构建配置时自动作为全局脚本套用。
+pub const ITEM_SCRIPT: &str = r#"// ==================== DNS 定义 ====================
+const koreanNameservers = [
+  "https://dns.dnsopts.net/dns-query",     // 韩国KT DoH
+  "https://168.126.63.1/dns-query"         // KT DoH备选
+];
 
-function main(config, profileName) {
+const domesticNameservers = [
+  "https://223.5.5.5/dns-query",           // 阿里DoH
+  "https://doh.pub/dns-query"              // 腾讯DoH
+];
+
+const foreignNameservers = [
+  "https://1.1.1.1/dns-query",             // Cloudflare
+  "https://8.8.8.8/dns-query"              // Google
+];
+
+// ==================== DNS 配置 ====================
+const dnsConfig = {
+  "enable": true,
+  "listen": "0.0.0.0:1053",
+  "ipv6": false,
+  "prefer-h3": false,
+  "respect-rules": true,
+  "use-system-hosts": false,
+  "cache-algorithm": "arc",
+  "enhanced-mode": "fake-ip",
+  "fake-ip-range": "198.18.0.1/16",
+  "fake-ip-filter": [
+    "+.lan", "+.local", "+.msftconnecttest.com", "+.msftncsi.com",
+    "localhost.ptlogin2.qq.com", "localhost.sec.qq.com",
+    "+.in-addr.arpa", "+.ip6.arpa", "time.*.com", "time.*.gov",
+    "pool.ntp.org", "localhost.work.weixin.qq.com"
+  ],
+  "default-nameserver": ["168.126.63.1", "210.220.163.82"],
+  "nameserver": [...koreanNameservers, ...domesticNameservers, ...foreignNameservers],
+  "proxy-server-nameserver": [...foreignNameservers],
+  "direct-nameserver": [...domesticNameservers],
+  "nameserver-policy": {
+    "geosite:private,cn": domesticNameservers
+  }
+};
+
+// ==================== 规则集定义(MetaCubeX .mrs) ====================
+const RP = {
+  type: "http",
+  interval: 86400
+};
+
+const ruleProviders = {
+  private:    { ...RP, format:"mrs", behavior:"domain", url:"https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/private.mrs",            path:"./ruleset/metacubex/private.mrs" },
+  reject:     { ...RP, format:"mrs", behavior:"domain", url:"https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/reject.mrs",            path:"./ruleset/metacubex/reject.mrs" },
+  icloud:     { ...RP, format:"mrs", behavior:"domain", url:"https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/icloud.mrs",            path:"./ruleset/metacubex/icloud.mrs" },
+  apple:      { ...RP, format:"mrs", behavior:"domain", url:"https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/apple-cn.mrs",           path:"./ruleset/metacubex/apple-cn.mrs" },
+  google:     { ...RP, format:"mrs", behavior:"domain", url:"https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/google.mrs",             path:"./ruleset/metacubex/google.mrs" },
+  proxy:      { ...RP, format:"mrs", behavior:"domain", url:"https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/gfw.mrs",                path:"./ruleset/metacubex/gfw.mrs" },
+  direct:     { ...RP, format:"mrs", behavior:"domain", url:"https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/cn.mrs",                 path:"./ruleset/metacubex/cn.mrs" },
+  gfw:        { ...RP, format:"mrs", behavior:"domain", url:"https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/gfw.mrs",                path:"./ruleset/metacubex/gfw.mrs" },
+  tld_not_cn: { ...RP, format:"mrs", behavior:"domain", url:"https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/geolocation-!cn.mrs",    path:"./ruleset/metacubex/geolocation-!cn.mrs" },
+  telegram:   { ...RP, format:"mrs", behavior:"domain", url:"https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/telegram.mrs",           path:"./ruleset/metacubex/telegram.mrs" },
+  netflix:    { ...RP, format:"mrs", behavior:"domain", url:"https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/netflix.mrs",            path:"./ruleset/metacubex/netflix.mrs" },
+  youtube:    { ...RP, format:"mrs", behavior:"domain", url:"https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/youtube.mrs",            path:"./ruleset/metacubex/youtube.mrs" },
+  github:     { ...RP, format:"mrs", behavior:"domain", url:"https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/github.mrs",             path:"./ruleset/metacubex/github.mrs" },
+  onedrive:   { ...RP, format:"mrs", behavior:"domain", url:"https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/onedrive.mrs",           path:"./ruleset/metacubex/onedrive.mrs" },
+  microsoft:  { ...RP, format:"mrs", behavior:"domain", url:"https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/microsoft.mrs",          path:"./ruleset/metacubex/microsoft.mrs" },
+  tiktok:     { ...RP, format:"mrs", behavior:"domain", url:"https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/tiktok.mrs",             path:"./ruleset/metacubex/tiktok.mrs" },
+  ai:         { ...RP, format:"mrs", behavior:"domain", url:"https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/category-ai-!cn.mrs",    path:"./ruleset/metacubex/category-ai-!cn.mrs" },
+  bahamut:    { ...RP, format:"mrs", behavior:"domain", url:"https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/bahamut.mrs",            path:"./ruleset/metacubex/bahamut.mrs" },
+  spotify:    { ...RP, format:"mrs", behavior:"domain", url:"https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/spotify.mrs",            path:"./ruleset/metacubex/spotify.mrs" },
+  bilibilihmt:{ ...RP, format:"mrs", behavior:"domain", url:"https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/bilibili-hmt.mrs",      path:"./ruleset/metacubex/bilibili-hmt.mrs" },
+
+  // IP-CIDR 规则集
+  cn_ip:      { ...RP, format:"mrs", behavior:"ipcidr", url:"https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geoip/cn.mrs",                  path:"./ruleset/metacubex/cn-ip.mrs" },
+  google_ip:  { ...RP, format:"mrs", behavior:"ipcidr", url:"https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geoip/google.mrs",              path:"./ruleset/metacubex/google-ip.mrs" },
+  telegram_ip:{ ...RP, format:"mrs", behavior:"ipcidr", url:"https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geoip/telegram.mrs",            path:"./ruleset/metacubex/telegram-ip.mrs" },
+  netflix_ip: { ...RP, format:"mrs", behavior:"ipcidr", url:"https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geoip/netflix.mrs",             path:"./ruleset/metacubex/netflix-ip.mrs" }
+};
+
+// ==================== 规则 ====================
+const rules = [
+  // Steam 登录/CM 强制直连（解决卡登录）
+  "DOMAIN-SUFFIX,valve.net,全局直连",
+  "DOMAIN-SUFFIX,steampowered.com,全局直连",
+  "DOMAIN-SUFFIX,steamstatic.com,全局直连",
+
+  // 微信/QQ 直连
+  "DOMAIN-SUFFIX,weixin.qq.com,全局直连",
+  "DOMAIN-SUFFIX,wechat.com,全局直连",
+  "DOMAIN-SUFFIX,wxp.qq.com,全局直连",
+  "DOMAIN-SUFFIX,wxi.cdn.qq.com,全局直连",
+  "DOMAIN-SUFFIX,qq.com,全局直连",
+  "DOMAIN-SUFFIX,qzone.qq.com,全局直连",
+
+   // ===== TikTok 专项优化防泄露 /  =====
+  "DOMAIN-SUFFIX,tiktok.com,TikTok",
+  "DOMAIN-SUFFIX,tiktokvod.com,TikTok",
+  "DOMAIN-SUFFIX,musical.ly,TikTok",
+  "DOMAIN-SUFFIX,byteoversea.com,TikTok",
+  "DOMAIN-SUFFIX,bytedance.com,TikTok",
+  "DOMAIN-KEYWORD,tiktok,TikTok",
+
+  // ===== NCSoft / AION2 / PURPLE / 天堂 / 剑灵 =====
+  "DOMAIN-SUFFIX,aion2.co.kr,节点选择",
+  "DOMAIN-SUFFIX,ncsoft.net,节点选择",
+  "DOMAIN-SUFFIX,nc-launcher.com,节点选择",
+  "DOMAIN-SUFFIX,lineage2.com,节点选择",
+  "DOMAIN-SUFFIX,lineagem.com,节点选择",
+  "DOMAIN-SUFFIX,bns.plaync.com,节点选择",
+  "DOMAIN-SUFFIX,gameguard.co.kr,节点选择",
+  "DOMAIN-SUFFIX,injections.nprotect.com,节点选择",
+  "DOMAIN-SUFFIX,auth.ncsoft.com,节点选择",
+  "DOMAIN-SUFFIX,nc.com,节点选择",
+  "DOMAIN-SUFFIX,plaync.com,节点选择",
+  "DOMAIN-SUFFIX,purple.plaync.com,节点选择",
+
+  // ===== NEXON （冒险岛/洛奇/CSOL/斗阵特工韩服/DNF韩服）=====
+  "DOMAIN-SUFFIX,nexon.com,节点选择",
+  "DOMAIN-SUFFIX,nexon.net,节点选择",
+  "DOMAIN-SUFFIX,nexoncdn.net,节点选择",
+  "DOMAIN-SUFFIX,nexon.co.kr,节点选择",
+  "DOMAIN-SUFFIX,maplestory.nexon.net,节点选择",
+  "DOMAIN-SUFFIX,nexonguard.com,节点选择",
+  "DOMAIN-SUFFIX,ngm.nexon.net,节点选择",
+
+// ===== 燕云十六声 国际服 / Steam 国际服 =====
+"DOMAIN-SUFFIX,everstone-online.com,节点选择",
+"DOMAIN-SUFFIX,everstonegame.com,节点选择",
+"DOMAIN-SUFFIX,justiceonline.com,节点选择",   // 燕云十六声官方域名段(如有)
+
+// ===== AION 2 Steam 韩服（Steam 启动的 AION2 走韩国节点）=====
+"DOMAIN-SUFFIX,aion2.gameforge.com,节点选择",  // 若 AION2 用 GameForge 启动
+"DOMAIN-KEYWORD,aion2,节点选择",               // 兜底匹配 aion2 相关 Steam 下载/CDN
+
+  // ===== Netmarble/ 网石（七骑士/天堂M韩服/二之国等） =====
+  "DOMAIN-SUFFIX,netmarble.net,节点选择",
+  "DOMAIN-SUFFIX,netmarble.com,节点选择",
+  "DOMAIN-SUFFIX,netmarble.co.kr,节点选择",
+  "DOMAIN-SUFFIX,nmgapi.netmarble.net,节点选择",
+
+  // ===== Smilegate （失落方舟/永恒之塔旧版/Crossfire韩服）=====
+  "DOMAIN-SUFFIX,smilegate.com,节点选择",
+  "DOMAIN-SUFFIX,smilegate.co.kr,节点选择",
+  "DOMAIN-SUFFIX,lostark.game.onstove.com,节点选择",
+  "DOMAIN-SUFFIX,onstove.com,节点选择",
+
+  // ===== Pearl Abyss  / 黑色沙漠 / Crimson Desert=====
+  "DOMAIN-SUFFIX,pearlabyss.com,节点选择",
+  "DOMAIN-SUFFIX,blackdesertonline.com,节点选择",
+  "DOMAIN-SUFFIX,blackdesert.co.kr,节点选择",
+  "DOMAIN-SUFFIX,pa-hub.com,节点选择",
+
+  // ===== Krafton  / PUBG / 永劫无间国际版 =====
+  "DOMAIN-SUFFIX,krafton.com,节点选择",
+  "DOMAIN-SUFFIX,pubg.com,节点选择",
+  "DOMAIN-SUFFIX,battlegrounds.pubg.com,节点选择",
+
+  // ===== GameOn  / HanbitSoft（Tera旧韩服/Granado Espada） =====
+  "DOMAIN-SUFFIX,gameon.co.kr,节点选择",
+  "DOMAIN-SUFFIX,hanbisoft.com,节点选择",
+
+
+  // Windows / Android 模拟器进程兜底（Clash.Meta 支持）
+  "PROCESS-NAME,TikTok.exe,TikTok",
+  "PROCESS-NAME,bytedance.exe,TikTok",
+
+  // 常用自定义
+  "DOMAIN-SUFFIX,googleapis.cn,节点选择",
+  "DOMAIN-SUFFIX,gstatic.com,节点选择",
+  "DOMAIN-SUFFIX,github.io,节点选择",
+  "DOMAIN,cloudflare-dns.com,广告过滤",
+  "DOMAIN,security.cloudflare-dns.com,广告过滤",
+  "DOMAIN,family.cloudflare-dns.com,广告过滤",
+  "DOMAIN,mozilla.cloudflare-dns.com,广告过滤",
+  "DOMAIN,dns.google,广告过滤",
+  "DOMAIN,dns.google.com,广告过滤",
+  "DOMAIN,doh.opendns.com,广告过滤",
+  "DOMAIN,dns.quad9.net,广告过滤",
+  "DOMAIN,doh.cleanbrowsing.org,广告过滤",
+  "DOMAIN-SUFFIX,dns.nextdns.io,广告过滤",
+
+  // 规则集
+  "RULE-SET,private,全局直连",
+  "RULE-SET,reject,广告过滤",
+  "RULE-SET,icloud,微软服务",
+  "RULE-SET,apple,苹果服务",
+  "RULE-SET,youtube,YouTube",
+  "RULE-SET,netflix,NETFLIX",
+  "RULE-SET,bahamut,动画疯",
+  "RULE-SET,spotify,Spotify",
+  "RULE-SET,bilibilihmt,哔哩哔哩港澳台",
+  "RULE-SET,ai,AI",
+  "RULE-SET,tiktok,TikTok",
+  "RULE-SET,github,GitHub",
+  "RULE-SET,google,谷歌服务",
+  "RULE-SET,proxy,节点选择",
+  "RULE-SET,gfw,节点选择",
+  "RULE-SET,tld_not_cn,节点选择",
+  "RULE-SET,direct,全局直连",
+  "RULE-SET,cn_ip,全局直连,no-resolve",
+  "RULE-SET,google_ip,谷歌服务,no-resolve",
+  "RULE-SET,telegram_ip,电报消息,no-resolve",
+  "RULE-SET,netflix_ip,NETFLIX,no-resolve",
+
+  // 兜底
+  "GEOSITE,CN,全局直连",
+  "GEOIP,LAN,全局直连,no-resolve",
+  "GEOIP,CN,全局直连,no-resolve",
+  "MATCH,漏网之鱼"
+];
+
+// ==================== 代理组 ====================
+const groupBaseOption = {
+  "interval": 300, "timeout": 3000, "url": "https://www.google.com/generate_204",
+  "lazy": true, "max-failed-times": 3, "hidden": false
+};
+
+// ==================== 程序入口 ====================
+function main(config) {
+  const proxyCount = config?.proxies?.length ?? 0;
+  const proxyProviderCount =
+    typeof config?.["proxy-providers"] === "object" ? Object.keys(config["proxy-providers"]).length : 0;
+  if (proxyCount === 0 && proxyProviderCount === 0) {
+    throw new Error("配置文件中未找到任何代理");
+  }
+
+  config["dns"] = dnsConfig;
+  config["rule-providers"] = ruleProviders;
+  config["rules"] = rules;
+
+  config["proxy-groups"] = [
+    { ...groupBaseOption, "name": "节点选择", "type": "select", "include-all": true, "filter": "^(?!.*(官网|套餐|流量|异常|剩余)).*$", "icon": "https://fastly.jsdelivr.net/gh/clash-verge-rev/clash-verge-rev.github.io@main/docs/assets/icons/adjust.svg" },
+    { ...groupBaseOption, "name": "谷歌服务", "type": "select", "proxies": ["节点选择","全局直连"], "include-all": true, "icon": "https://fastly.jsdelivr.net/gh/clash-verge-rev/clash-verge-rev.github.io@main/docs/assets/icons/google.svg" },
+    { ...groupBaseOption, "name": "YouTube", "type": "select", "proxies": ["节点选择","全局直连"], "include-all": true, "icon": "https://fastly.jsdelivr.net/gh/clash-verge-rev/clash-verge-rev.github.io@main/docs/assets/icons/youtube.svg" },
+    { ...groupBaseOption, "name": "NETFLIX", "type": "select", "proxies": ["节点选择","全局直连"], "include-all": true, "icon": "https://fastly.jsdelivr.net/gh/xiaolin-007/clash@main/icon/netflix.svg" },
+    { ...groupBaseOption, "name": "电报消息", "type": "select", "proxies": ["节点选择","全局直连"], "include-all": true, "icon": "https://fastly.jsdelivr.net/gh/clash-verge-rev/clash-verge-rev.github.io@main/docs/assets/icons/telegram.svg" },
+    { ...groupBaseOption, "name": "AI", "type": "select", "include-all": true, "proxies": ["节点选择"], "icon": "https://fastly.jsdelivr.net/gh/clash-verge-rev/clash-verge-rev.github.io@main/docs/assets/icons/chatgpt.svg" },
+    { ...groupBaseOption, "name": "TikTok", "type": "select", "include-all": true, "proxies": ["节点选择"], "icon": "https://fastly.jsdelivr.net/gh/xiaolin-007/clash@main/icon/tiktok.svg" },
+    { ...groupBaseOption, "name": "微软服务", "type": "select", "proxies": ["全局直连","节点选择"], "include-all": true, "icon": "https://fastly.jsdelivr.net/gh/clash-verge-rev/clash-verge-rev.github.io@main/docs/assets/icons/microsoft.svg" },
+    { ...groupBaseOption, "name": "苹果服务", "type": "select", "proxies": ["节点选择","全局直连"], "include-all": true, "icon": "https://fastly.jsdelivr.net/gh/clash-verge-rev/clash-verge-rev.github.io@main/docs/assets/icons/apple.svg" },
+    { ...groupBaseOption, "name": "动画疯", "type": "select", "proxies": ["节点选择"], "include-all": true, "filter": "(?i)台|tw|TW", "icon": "https://fastly.jsdelivr.net/gh/xiaolin-007/clash@main/icon/Bahamut.svg" },
+    { ...groupBaseOption, "name": "哔哩哔哩港澳台", "type": "select", "proxies": ["全局直连","节点选择"], "include-all": true, "filter": "^(?!.*(官网|套餐|流量|异常|剩余)).*$", "icon": "https://fastly.jsdelivr.net/gh/xiaolin-007/clash@main/icon/bilibili.svg" },
+    { ...groupBaseOption, "name": "Spotify", "type": "select", "proxies": ["节点选择","全局直连"], "include-all": true, "icon": "https://fastly.jsdelivr.net/gh/xiaolin-007/clash@main/icon/spotify.svg" },
+    { ...groupBaseOption, "name": "GitHub", "type": "select", "proxies": ["节点选择","全局直连"], "include-all": true, "icon": "https://fastly.jsdelivr.net/gh/xiaolin-007/clash@main/icon/github.svg" },
+    { ...groupBaseOption, "name": "广告过滤", "type": "select", "proxies": ["REJECT", "DIRECT"], "icon": "https://fastly.jsdelivr.net/gh/clash-verge-rev/clash-verge-rev.github.io@main/docs/assets/icons/bug.svg" },
+    { ...groupBaseOption, "name": "全局直连", "type": "select", "proxies": ["DIRECT","节点选择"], "include-all": true, "icon": "https://fastly.jsdelivr.net/gh/clash-verge-rev/clash-verge-rev.github.io@main/docs/assets/icons/link.svg" },
+    { ...groupBaseOption, "name": "全局拦截", "type": "select", "proxies": ["REJECT", "DIRECT"], "icon": "https://fastly.jsdelivr.net/gh/clash-verge-rev/clash-verge-rev.github.io@main/docs/assets/icons/block.svg" },
+    { ...groupBaseOption, "name": "漏网之鱼", "type": "select", "proxies": ["节点选择","全局直连"], "include-all": true, "filter": "^(?!.*(官网|套餐|流量|异常|剩余)).*$", "icon": "https://fastly.jsdelivr.net/gh/clash-verge-rev/clash-verge-rev.github.io@main/docs/assets/icons/fish.svg" }
+  ];
+
+  if(config["proxies"]) {
+    config["proxies"].forEach(p => { p.udp = false; });
+  }
+
+  // TUN + DNS 劫持 + 微信绕过
+  config["tun"] = {
+    "enable": true,
+    "stack": "system",
+    "auto-route": true,
+    "auto-detect-interface": true,
+    "dns-hijack": ["any:53"],
+    "bypass-process": ["WeChat.exe","WeChatApp.exe","QQ.exe"]
+  };
+
   return config;
 }
-";
-
+"#;
 /// enhanced profile
 pub const ITEM_RULES: &str = "# Profile Enhancement Rules Template for Clash Verge
-
 prepend: []
-
 append: []
-
 delete: []
 ";
-
 /// enhanced profile
 pub const ITEM_PROXIES: &str = "# Profile Enhancement Proxies Template for Clash Verge
-
 prepend: []
-
 append: []
-
 delete: []
 ";
-
 /// enhanced profile
 pub const ITEM_GROUPS: &str = "# Profile Enhancement Groups Template for Clash Verge
-
 prepend: []
-
 append: []
-
 delete: []
 ";

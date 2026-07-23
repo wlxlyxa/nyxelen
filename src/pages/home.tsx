@@ -1,6 +1,5 @@
 import {
   DnsOutlined,
-  HelpOutlineRounded,
   HistoryEduOutlined,
   RouterOutlined,
   SettingsOutlined,
@@ -21,7 +20,6 @@ import {
   Skeleton,
   Tooltip,
 } from '@mui/material'
-import { useLockFn } from 'ahooks'
 import { Suspense, lazy, useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -34,7 +32,7 @@ import { HomeProfileCard } from '@/components/home/home-profile-card'
 import { ProxyTunCard } from '@/components/home/proxy-tun-card'
 import { useProfiles } from '@/hooks/use-profiles'
 import { useVerge } from '@/hooks/use-verge'
-import { entry_lightweight_mode, openWebUrl } from '@/services/cmds'
+import { entry_lightweight_mode,} from '@/services/cmds'
 
 const LazyTestCard = lazy(() =>
   import('@/components/home/test-card').then((module) => ({
@@ -261,10 +259,6 @@ const HomePage = () => {
 
   const effectiveHomeCards = pendingLocalCards ?? remoteHomeCards
 
-  // 文档链接函数
-  const toGithubDoc = useLockFn(() => {
-    return openWebUrl('https://clash-verge-rev.github.io/index.html')
-  })
 
   // 新增：打开设置弹窗
   const openSettings = useCallback(() => {
@@ -375,11 +369,6 @@ const HomePage = () => {
               color="inherit"
             >
               <HistoryEduOutlined />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title={t('home.page.tooltips.manual')} arrow>
-            <IconButton onClick={toGithubDoc} size="small" color="inherit">
-              <HelpOutlineRounded />
             </IconButton>
           </Tooltip>
           <Tooltip title={t('home.page.tooltips.settings')} arrow>

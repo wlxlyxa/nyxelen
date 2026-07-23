@@ -1,3 +1,2 @@
 [toolchain]
-channel = "1.95.0"
-components = ["rustfmt", "clippy"]
+channel = "stable-x86_64-pc-windows-msvc"

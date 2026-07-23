@@ -1,0 +1,10 @@
+$ tauri "build" "--verbose"
+       Debug [tauri_cli::helpers::app_paths] Found Tauri project inside E:\clash\wangzai-pc\src-tauri on early lookup
+        Info [tauri_cli::interface::rust::manifest] `tauri` dependency has workspace inheritance enabled. The features array won't be automatically rewritten. Expected features: [protocol-asset]
+        Info [tauri_cli::build] Looking up installed tauri packages to check mismatched versions...
+     Running [tauri_cli::helpers] beforeBuildCommand `pnpm run web:build`
+       Debug [tauri_cli::helpers] Setting environment for hook {"TAURI_ENV_FAMILY": "windows", "TAURI_ENV_ARCH": "x86_64", "TAURI_ENV_PLATFORM_VERSION": "10.0.22621", "TAURI_ENV_TARGET_TRIPLE": "x86_64-pc-windows-msvc", "TAURI_ENV_PLATFORM": "windows"}
+     Running [tauri_cli] Command `cmd /S /C pnpm run web:build`
+$ tsc --noEmit && vite build
+[36mvite v8.1.3 [32mbuilding client environment for production...[36m[39m
+[2Ktransforming...

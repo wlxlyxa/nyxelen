@@ -203,6 +203,7 @@ impl Config {
     pub async fn generate() -> Result<()> {
         let (mut config, exists_keys, logs) = enhance::enhance().await?;
 
+        crate::config::rule_mirror::patch_rule_providers(&mut config).await; // 新增这一行
         sanitize_tunnels_proxy(&mut config);
 
         Self::runtime().await.edit_draft(|d| {

@@ -404,13 +404,19 @@
         "autoDelayDetection": "تشخیص تأخیر خودکار",
         "autoDelayDetectionInterval": "فاصله تشخیص تأخیر خودکار",
         "defaultLatencyTest": "آزمون تأخیر پیش‌فرض",
-        "defaultLatencyTimeout": "زمان انتظار تأخیر پیش‌فرض"
+        "defaultLatencyTimeout": "زمان انتظار تأخیر پیش‌فرض",
+        "webrtcLeakProtection": "WebRTC Leak Protection",
+        "smhnrEnabled": "SMHNR Protection",
+        "ipv6Block": "IPv6 Leak Protection"
       },
       "tooltips": {
         "autoCloseConnections": "اتصالات برقرار شده را هنگام تغییر انتخاب گروه پروکسی یا حالت پروکسی خاتمه دهید",
         "enableBuiltinEnhanced": "مدیریت سازگاری برای فایل پیکربندی",
         "autoDelayDetection": "به‌صورت دوره‌ای تأخیر گره فعلی را در پس‌زمینه آزمایش می‌کند",
-        "defaultLatencyTest": "فقط برای تست درخواست‌های کلاینت HTTP استفاده می‌شود و بر فایل پیکربندی تأثیری نخواهد داشت"
+        "defaultLatencyTest": "فقط برای تست درخواست‌های کلاینت HTTP استفاده می‌شود و بر فایل پیکربندی تأثیری نخواهد داشت",
+        "webrtcLeakProtection": "Force WebRTC traffic through the proxy to prevent IP leaks.",
+        "smhnrEnabled": "Enable SMHNR leak protection to prevent DNS-based tracking",
+        "ipv6Block": "Enable IPv6 leak protection. Some effects apply immediately; full effect requires a system restart."
       },
       "options": {
         "proxyLayoutColumns": {

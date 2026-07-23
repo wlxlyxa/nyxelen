@@ -1,9 +1,10 @@
 {
-  "version": "2.5.2",
+  "version": "2.6.8",
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "bundle": {
     "active": true,
-    "longDescription": "Clash Verge Rev",
+    "targets": ["nsis", "msi"],
+    "longDescription": "望仔",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -12,12 +13,12 @@
       "icons/icon.ico"
     ],
     "resources": ["resources"],
-    "publisher": "Clash Verge Rev",
+    "publisher": "望仔",
     "externalBin": ["sidecar/verge-mihomo", "sidecar/verge-mihomo-alpha"],
-    "copyright": "GNU General Public License v3.0",
+    "copyright": "GNU General Public License v3.0 · Based on Clash Verge Rev, modified by 望仔",
     "category": "DeveloperTool",
-    "shortDescription": "Clash Verge Rev",
-    "createUpdaterArtifacts": true
+    "shortDescription": "望仔",
+    "createUpdaterArtifacts": false
   },
   "build": {
     "beforeBuildCommand": "pnpm run web:build",
@@ -26,15 +27,15 @@
     "devUrl": "http://localhost:3000/",
     "removeUnusedCommands": true
   },
-  "productName": "Clash Verge",
-  "identifier": "io.github.clash-verge-rev.clash-verge-rev",
-  "plugins": {
+  "productName": "望仔",
+  "identifier": "io.github.wlxlyxa.wangzai",
+ "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEQyOEMyRjBCQkVGOUJEREYKUldUZnZmbStDeStNMHU5Mmo1N24xQXZwSVRYbXA2NUpzZE5oVzlqeS9Bc0t6RVV4MmtwVjBZaHgK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDI2M0JGQjk1RkFBQjgzRTYKUldUbWc2djZsZnM3Sm85UndBQTV5WDdmRkxLeGd6Q3Qrc2lsZGxrUVR1NGNHZUpIMDFkNjN2bTgK",
       "endpoints": [
-        "https://update.hwdns.net/https://github.com/clash-verge-rev/clash-verge-rev/releases/download/updater/update-proxy.json",
-        "https://gh-proxy.org/https://github.com/clash-verge-rev/clash-verge-rev/releases/download/updater/update-proxy.json",
-        "https://github.com/clash-verge-rev/clash-verge-rev/releases/download/updater/update.json"
+        "https://gh-proxy.org/https://github.com/wlxlyxa/wangzai/releases/download/updater/update.json",
+        "https://ghfast.top/https://github.com/wlxlyxa/wangzai/releases/download/updater/update.json",
+        "https://github.com/wlxlyxa/wangzai/releases/download/updater/update.json"
       ],
       "windows": {
         "installMode": "passive"
@@ -42,7 +43,7 @@
     },
     "deep-link": {
       "desktop": {
-        "schemes": ["clash", "clash-verge"]
+        "schemes": ["wangzai"]
       }
     }
   },

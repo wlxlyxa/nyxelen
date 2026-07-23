@@ -197,6 +197,8 @@ pub(super) async fn init_service_manager() {
 
 pub(super) async fn init_core_manager() {
     logging_error!(Type::Setup, CoreManager::global().init().await);
+    logging_error!(Type::Setup, CoreManager::global().init().await);
+    crate::core::watchdog::start();
 }
 
 pub(super) async fn init_system_proxy() {

@@ -1,4 +1,8 @@
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import {
+  Box,
+  Collapse,
+  IconButton,
   InputAdornment,
   List,
   ListItem,
@@ -8,18 +12,20 @@ import {
   TextField,
 } from '@mui/material'
 import { useLockFn } from 'ahooks'
-import { forwardRef, useImperativeHandle, useState } from 'react'
+import { forwardRef, useImperativeHandle, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { BaseDialog, DialogRef, Switch, TooltipIcon } from '@/components/base'
 import { useVerge } from '@/hooks/use-verge'
 import { showNotice } from '@/services/notice-service'
+import { invoke } from '@tauri-apps/api/core'
 
 export const MiscViewer = forwardRef<DialogRef>((props, ref) => {
   const { t } = useTranslation()
   const { verge, patchVerge } = useVerge()
 
   const [open, setOpen] = useState(false)
+  const [dnsSubOptionsExpanded, setDnsSubOptionsExpanded] = useState(false)
   const [values, setValues] = useState({
     appLogLevel: 'warn',
     appLogMaxSize: 8,
@@ -33,12 +39,21 @@ export const MiscViewer = forwardRef<DialogRef>((props, ref) => {
     defaultLatencyTest: '',
     autoLogClean: 2,
     defaultLatencyTimeout: 10000,
+    webrtcLeakProtection: false,
+    smhnrEnabled: true,
+    ipv6Block: false,
   })
+
+  // 记录“本次打开面板时”的初始值快照，onSave 时用它和当前 values 做差异对比。
+  // 注意：IPv6 状态是异步查询回来的，下面 check_ipv6_block_status 成功后
+  // 也会同步更新这份快照，否则用户没碰 IPv6 开关也会被误判为“变了”。
+  const initialValuesRef = useRef(values)
 
   useImperativeHandle(ref, () => ({
     open: () => {
       setOpen(true)
-      setValues({
+      setDnsSubOptionsExpanded(false)
+      const initialValues = {
         appLogLevel: verge?.app_log_level ?? 'warn',
         appLogMaxSize: verge?.app_log_max_size ?? 128,
         appLogMaxCount: verge?.app_log_max_count ?? 8,
@@ -52,12 +67,30 @@ export const MiscViewer = forwardRef<DialogRef>((props, ref) => {
         defaultLatencyTest: verge?.default_latency_test || '',
         autoLogClean: verge?.auto_log_clean || 0,
         defaultLatencyTimeout: verge?.default_latency_timeout || 10000,
-      })
+        webrtcLeakProtection: verge?.webrtc_leak_protection ?? false,
+        smhnrEnabled: verge?.smhnr_enabled ?? true,
+        ipv6Block: false,
+      }
+      initialValuesRef.current = initialValues
+      setValues(initialValues)
+      // IPv6 状态存在注册表里，不在 verge 配置里，需要单独异步查询真实系统状态
+      invoke<boolean>('check_ipv6_block_status')
+        .then((status) => {
+          // 把查到的真实状态也补进初始值快照，避免用户没动这个开关时被误判为“有变化”
+          initialValuesRef.current = {
+            ...initialValuesRef.current,
+            ipv6Block: status,
+          }
+          setValues((v) => ({ ...v, ipv6Block: status }))
+        })
+        .catch(() => {
+          // 查询失败（比如非 Windows 平台）保持默认 false，不阻断界面打开
+        })
     },
     close: () => setOpen(false),
   }))
 
-  const onSave = useLockFn(async () => {
+const onSave = useLockFn(async () => {
     try {
       await patchVerge({
         app_log_level: values.appLogLevel,
@@ -73,8 +106,88 @@ export const MiscViewer = forwardRef<DialogRef>((props, ref) => {
         default_latency_test: values.defaultLatencyTest,
         default_latency_timeout: values.defaultLatencyTimeout,
         auto_log_clean: values.autoLogClean as any,
+        webrtc_leak_protection: values.webrtcLeakProtection,
+        smhnr_enabled: values.smhnrEnabled,
       })
+
+      const initial = initialValuesRef.current
+
+      const webrtcMasterChanged =
+        initial.webrtcLeakProtection !== values.webrtcLeakProtection
+      const smhnrNeedsUpdate =
+        webrtcMasterChanged ||
+        (values.webrtcLeakProtection &&
+          initial.smhnrEnabled !== values.smhnrEnabled)
+      const ipv6NeedsUpdate = initial.ipv6Block !== values.ipv6Block
+
+      const tasks: Promise<unknown>[] = []
+
+      if (webrtcMasterChanged) {
+        tasks.push(
+          (values.webrtcLeakProtection
+            ? invoke('enable_webrtc_control')
+            : invoke('disable_webrtc_control')
+          ).catch((err) => {
+            showNotice.error(
+              typeof err === 'string'
+                ? err
+                : '设置 WebRTC 防泄漏失败，可能需要以管理员身份运行',
+            )
+          }),
+        )
+        tasks.push(
+          (values.webrtcLeakProtection
+            ? invoke('enable_doh_block')
+            : invoke('disable_doh_block')
+          ).catch((err) => {
+            showNotice.error(
+              typeof err === 'string'
+                ? err
+                : '设置 DoH 防泄漏失败，可能需要以管理员身份运行',
+            )
+          }),
+        )
+      }
+
+      if (smhnrNeedsUpdate) {
+        tasks.push(
+          (values.webrtcLeakProtection && values.smhnrEnabled
+            ? invoke('enable_smhnr_protection')
+            : invoke('disable_smhnr_protection')
+          ).catch((err) => {
+            showNotice.error(
+              typeof err === 'string'
+                ? err
+                : '设置 SMHNR 防泄漏失败，可能需要以管理员身份运行',
+            )
+          }),
+        )
+      }
+
+      if (ipv6NeedsUpdate) {
+        tasks.push(
+          (values.ipv6Block
+            ? invoke('enable_ipv6_block')
+            : invoke('disable_ipv6_block')
+          ).catch((err) => {
+            showNotice.error(
+              typeof err === 'string'
+                ? err
+                : '设置 IPv6 防泄漏失败，可能需要以管理员身份运行',
+            )
+          }),
+        )
+      }
+
+      // 先关闭弹窗、更新初始值快照，不让用户等系统级操作跑完。
+      // 这几个 invoke 涉及 PowerShell/注册表写入，本身有一定耗时，
+      // 放到后台执行，失败了各自 catch 里的 showNotice.error 会照常弹出提示。
+      initialValuesRef.current = values
       setOpen(false)
+
+      if (tasks.length > 0) {
+        void Promise.allSettled(tasks)
+      }
     } catch (err) {
       showNotice.error(err)
     }
@@ -230,6 +343,74 @@ export const MiscViewer = forwardRef<DialogRef>((props, ref) => {
           />
         </ListItem>
 
+        {/* WebRTC / DNS 防泄漏 主开关 + 展开箭头 */}
+        <ListItem sx={{ padding: '5px 2px' }}>
+          <ListItemText
+            primary={t('settings.modals.misc.fields.webrtcLeakProtection')}
+            sx={{ maxWidth: 'fit-content' }}
+          />
+          <TooltipIcon
+            title={t('settings.modals.misc.tooltips.webrtcLeakProtection')}
+            sx={{ opacity: '0.7' }}
+          />
+          <Box sx={{ marginLeft: 'auto', display: 'flex', alignItems: 'center' }}>
+            <IconButton
+              size="small"
+              onClick={() => setDnsSubOptionsExpanded((e) => !e)}
+              sx={{
+                transform: dnsSubOptionsExpanded
+                  ? 'rotate(180deg)'
+                  : 'rotate(0deg)',
+                transition: 'transform 0.2s',
+                padding: '4px',
+              }}
+            >
+              <ExpandMoreIcon fontSize="small" />
+            </IconButton>
+            <Switch
+              edge="end"
+              checked={values.webrtcLeakProtection}
+              onChange={(_, c) =>
+                setValues((v) => ({ ...v, webrtcLeakProtection: c }))
+              }
+            />
+          </Box>
+        </ListItem>
+
+        <Collapse in={dnsSubOptionsExpanded} timeout="auto" unmountOnExit>
+          <ListItem sx={{ padding: '5px 2px 5px 24px' }}>
+            <ListItemText
+              primary={t('settings.modals.misc.fields.smhnrEnabled')}
+              secondary={t('settings.modals.misc.tooltips.smhnrEnabled')}
+              slotProps={{ secondary: { sx: { fontSize: 12, opacity: 0.6 } } }}
+              sx={{ maxWidth: 320 }}
+            />
+            <Switch
+              edge="end"
+              disabled={!values.webrtcLeakProtection}
+              checked={values.smhnrEnabled}
+              onChange={(_, c) =>
+                setValues((v) => ({ ...v, smhnrEnabled: c }))
+              }
+              sx={{ marginLeft: 'auto' }}
+            />
+          </ListItem>
+        </Collapse>
+        {/* IPv6 防泄漏 独立开关，跟 WebRTC 无关联 */}
+        <ListItem sx={{ padding: '5px 2px' }}>
+          <ListItemText
+            primary={t('settings.modals.misc.fields.ipv6Block')}
+            secondary={t('settings.modals.misc.tooltips.ipv6Block')}
+            slotProps={{ secondary: { sx: { fontSize: 12, opacity: 0.6 } } }}
+            sx={{ maxWidth: 320 }}
+          />
+          <Switch
+            edge="end"
+            checked={values.ipv6Block}
+            onChange={(_, c) => setValues((v) => ({ ...v, ipv6Block: c }))}
+            sx={{ marginLeft: 'auto' }}
+          />
+        </ListItem>
         <ListItem sx={{ padding: '5px 2px' }}>
           <ListItemText
             primary={t('settings.modals.misc.fields.proxyLayoutColumns')}

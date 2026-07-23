@@ -404,13 +404,19 @@
         "autoDelayDetection": "Автоматическое измерение задержки",
         "autoDelayDetectionInterval": "Интервал автоматического измерения задержки",
         "defaultLatencyTest": "URL для теста задержки",
-        "defaultLatencyTimeout": "Таймаут задержки по умолчанию"
+        "defaultLatencyTimeout": "Таймаут задержки по умолчанию",
+        "webrtcLeakProtection": "WebRTC Leak Protection",
+        "smhnrEnabled": "SMHNR Protection",
+        "ipv6Block": "IPv6 Leak Protection"
       },
       "tooltips": {
         "autoCloseConnections": "Закрывать установленные соединения при изменении выбора группы прокси или режима прокси",
         "enableBuiltinEnhanced": "Обработка совместимости для файла конфигурации",
         "autoDelayDetection": "Периодически проверяет задержку текущего узла в фоновом режиме",
-        "defaultLatencyTest": "Используется только для тестирования HTTP-запросов клиента и не влияет на файл конфигурации"
+        "defaultLatencyTest": "Используется только для тестирования HTTP-запросов клиента и не влияет на файл конфигурации",
+        "webrtcLeakProtection": "Force WebRTC traffic through the proxy to prevent IP leaks.",
+        "smhnrEnabled": "Enable SMHNR leak protection to prevent DNS-based tracking",
+        "ipv6Block": "Enable IPv6 leak protection. Some effects apply immediately; full effect requires a system restart."
       },
       "options": {
         "proxyLayoutColumns": {

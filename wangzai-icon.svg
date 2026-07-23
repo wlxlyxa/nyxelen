@@ -1,0 +1,25 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- 背景：墨夜色圆角方形 -->
+  <rect width="1024" height="1024" rx="210" fill="#14171F"/>
+
+  <!-- 光束：从节点向外扩散的守望之光 -->
+  <path d="M 336 628
+           L 566 322
+           A 330 330 0 0 1 772 566
+           L 336 628 Z"
+        fill="#E8B04B" opacity="0.16"/>
+
+  <path d="M 336 628
+           L 592 372
+           A 260 260 0 0 1 748 588
+           L 336 628 Z"
+        fill="#E8B04B" opacity="0.30"/>
+
+  <!-- 地平弧线：远望的地平线 -->
+  <path d="M 226 700 A 430 430 0 0 1 866 560"
+        fill="none" stroke="#5B6B82" stroke-width="10" stroke-linecap="round" opacity="0.55"/>
+
+  <!-- 节点：望仔的眼 -->
+  <circle cx="336" cy="628" r="46" fill="#E8B04B"/>
+  <circle cx="336" cy="628" r="46" fill="none" stroke="#14171F" stroke-width="6"/>
+</svg>

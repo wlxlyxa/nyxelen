@@ -404,13 +404,19 @@
         "autoDelayDetection": "Otomatik Gecikme Tespiti",
         "autoDelayDetectionInterval": "Otomatik Gecikme Tespiti Aralığı",
         "defaultLatencyTest": "Varsayılan Gecikme Testi",
-        "defaultLatencyTimeout": "Varsayılan Gecikme Zaman Aşımı"
+        "defaultLatencyTimeout": "Varsayılan Gecikme Zaman Aşımı",
+        "webrtcLeakProtection": "WebRTC Leak Protection",
+        "smhnrEnabled": "SMHNR Protection",
+        "ipv6Block": "IPv6 Leak Protection"
       },
       "tooltips": {
         "autoCloseConnections": "Vekil grup seçimi veya vekil modu değiştiğinde kurulan bağlantıları sonlandır",
         "enableBuiltinEnhanced": "Yapılandırma dosyası için uyumluluk işleme",
         "autoDelayDetection": "Arka planda mevcut düğümün gecikmesini periyodik olarak test eder",
-        "defaultLatencyTest": "Yalnızca HTTP istemci isteği testi için kullanılır ve yapılandırma dosyasında bir fark yaratmaz"
+        "defaultLatencyTest": "Yalnızca HTTP istemci isteği testi için kullanılır ve yapılandırma dosyasında bir fark yaratmaz",
+        "webrtcLeakProtection": "Force WebRTC traffic through the proxy to prevent IP leaks.",
+        "smhnrEnabled": "Enable SMHNR leak protection to prevent DNS-based tracking",
+        "ipv6Block": "Enable IPv6 leak protection. Some effects apply immediately; full effect requires a system restart."
       },
       "options": {
         "proxyLayoutColumns": {

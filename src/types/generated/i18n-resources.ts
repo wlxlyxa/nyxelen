@@ -955,7 +955,10 @@ export interface TranslationResources {
             defaultLatencyTest: string
             defaultLatencyTimeout: string
             enableBuiltinEnhanced: string
+            ipv6Block: string
             proxyLayoutColumns: string
+            smhnrEnabled: string
+            webrtcLeakProtection: string
           }
           options: {
             autoLogClean: {
@@ -972,6 +975,9 @@ export interface TranslationResources {
             autoDelayDetection: string
             defaultLatencyTest: string
             enableBuiltinEnhanced: string
+            ipv6Block: string
+            smhnrEnabled: string
+            webrtcLeakProtection: string
           }
         }
         networkInterface: {

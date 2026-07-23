@@ -90,7 +90,7 @@
       "system": "系统"
     },
     "clash": {
-      "title": "Clash 设置",
+      "title": "设置",
       "form": {
         "fields": {
           "allowLan": "局域网连接",
@@ -150,7 +150,7 @@
   "components": {
     "verge": {
       "basic": {
-        "title": "Verge 基础设置",
+        "title": "基础设置",
         "actions": {
           "browse": "浏览"
         },
@@ -173,7 +173,7 @@
         }
       },
       "advanced": {
-        "title": "Verge 高级设置",
+        "title": "高级设置",
         "tooltips": {
           "backupInfo": "支持本地或 WebDAV 方式备份配置文件",
           "openConfDir": "如果软件运行异常，!备份!并删除此文件夹下的所有文件，重启软件",
@@ -404,13 +404,19 @@
         "autoDelayDetection": "自动延迟检测",
         "autoDelayDetectionInterval": "自动延迟检测间隔",
         "defaultLatencyTest": "默认测试链接",
-        "defaultLatencyTimeout": "测试超时时间"
+        "defaultLatencyTimeout": "测试超时时间",
+        "webrtcLeakProtection": "WebRTC/DNS 防泄漏保护",
+        "smhnrEnabled": "SMHNR 防泄漏保护",
+        "ipv6Block": "IPv6 防泄漏保护"
       },
       "tooltips": {
         "autoCloseConnections": "当代理组选中节点或代理模式变动时，关闭已建立的连接",
         "enableBuiltinEnhanced": "配置文件的兼容性处理",
         "autoDelayDetection": "后台定时检测当前节点延迟",
-        "defaultLatencyTest": "仅用于 HTTP 客户端请求测试，不会对配置文件产生影响"
+        "defaultLatencyTest": "仅用于 HTTP 客户端请求测试，不会对配置文件产生影响",
+        "webrtcLeakProtection": "防止浏览器通过 WebRTC 泄露真实 IP",
+        "smhnrEnabled": "启用 SMHNR 防泄漏保护，阻止基于DNS的追踪",
+        "ipv6Block": "启用 IPv6 防泄漏保护，部分效果立即生效，完全生效需要重启电脑"
       },
       "options": {
         "proxyLayoutColumns": {

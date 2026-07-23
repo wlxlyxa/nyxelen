@@ -1,6 +1,7 @@
 import './assets/styles/index.scss'
 
 import { ResizeObserver } from '@juggle/resize-observer'
+import { createStore, Provider as JotaiProvider } from 'jotai'
 import { ComposeContextProvider } from 'foxact/compose-context-provider'
 import React from 'react'
 import { createRoot } from 'react-dom/client'
@@ -39,8 +40,11 @@ if (!container) {
 
 disableWebViewShortcuts()
 
+export const store = createStore()
+
 const initializeApp = (initialThemeMode: 'light' | 'dark') => {
   const contexts = [
+    <JotaiProvider key="jotai" store={store} />,
     <ThemeModeProvider key="theme" initialState={initialThemeMode} />,
     <LoadingCacheProvider key="loading" />,
     <UpdateStateProvider key="update" />,
@@ -53,9 +57,9 @@ const initializeApp = (initialThemeMode: 'light' | 'dark') => {
         <BaseErrorBoundary>
           <SWRConfig value={swrConfig}>
             <WindowProvider>
-              <AppDataProvider>
-                <RouterProvider router={router} />
-              </AppDataProvider>
+                <AppDataProvider>
+                  <RouterProvider router={router} />
+                </AppDataProvider>
             </WindowProvider>
           </SWRConfig>
         </BaseErrorBoundary>
@@ -64,8 +68,12 @@ const initializeApp = (initialThemeMode: 'light' | 'dark') => {
   )
 }
 
+// ✅ 【修改点 2】：修复了这里的语法错误，删除了混入数组的 import 语句
 const bootstrap = async () => {
-  const { initialThemeMode } = await preloadAppData()
+  const [{ initialThemeMode }] = await Promise.all([
+    preloadAppData(),
+  ])
+
   initializeApp(initialThemeMode)
 }
 
@@ -97,12 +105,10 @@ window.addEventListener('unhandledrejection', (event) => {
 
 // Page close/refresh events
 window.addEventListener('beforeunload', () => {
-  // Clean up all WebSocket instances to prevent memory leaks
   MihomoWebSocket.cleanupAll()
 })
 
 // Page loaded event
 window.addEventListener('DOMContentLoaded', () => {
-  // Clean up all WebSocket instances to prevent memory leaks
   MihomoWebSocket.cleanupAll()
 })

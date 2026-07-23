@@ -257,6 +257,15 @@ pub struct IVerge {
 
     /// 启用外部控制器
     pub enable_external_controller: Option<bool>,
+
+    /// WebRTC 防泄漏开关
+    pub webrtc_leak_protection: Option<bool>,
+
+    /// SMHNR（Windows 智能多宿主名称解析）防泄漏开关
+    pub smhnr_enabled: Option<bool>,
+
+    /// 全局禁用 IPv6
+    pub ipv6_block: Option<bool>,
 }
 
 #[derive(Default, Debug, Clone, Deserialize, Serialize)]
@@ -385,7 +394,7 @@ impl IVerge {
             app_log_max_count: Some(8),
             clash_core: Some("verge-mihomo".into()),
             language: Some(clash_verge_i18n::system_language().into()),
-            theme_mode: Some("system".into()),
+            theme_mode: Some("dark".into()),
             #[cfg(not(target_os = "windows"))]
             env_type: Some("bash".into()),
             #[cfg(target_os = "windows")]
@@ -523,9 +532,12 @@ impl IVerge {
         patch!(proxy_host);
         patch!(theme_setting);
         patch!(web_ui_list);
+        patch!(webrtc_leak_protection);
+        patch!(ipv6_block);
+        patch!(smhnr_enabled);
+        patch!(enable_global_hotkey);
         patch!(clash_core);
         patch!(hotkeys);
-        patch!(enable_global_hotkey);
 
         patch!(auto_close_connection);
         patch!(auto_check_update);

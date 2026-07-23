@@ -404,13 +404,19 @@
         "autoDelayDetection": "自動遅延検出",
         "autoDelayDetectionInterval": "自動遅延検出間隔",
         "defaultLatencyTest": "デフォルトの遅延テストURL",
-        "defaultLatencyTimeout": "テストタイムアウト時間"
+        "defaultLatencyTimeout": "テストタイムアウト時間",
+        "webrtcLeakProtection": "WebRTC Leak Protection",
+        "smhnrEnabled": "SMHNR Protection",
+        "ipv6Block": "IPv6 Leak Protection"
       },
       "tooltips": {
         "autoCloseConnections": "プロキシグループで選択されたノードまたはプロキシモードが変更されたときに、既存の接続を閉じます。",
         "enableBuiltinEnhanced": "設定ファイルの互換性処理",
         "autoDelayDetection": "バックグラウンドで現在のノードのレイテンシーを定期的にテストします",
-        "defaultLatencyTest": "HTTPクライアントリクエストテストにのみ使用され、設定ファイルには影響しません。"
+        "defaultLatencyTest": "HTTPクライアントリクエストテストにのみ使用され、設定ファイルには影響しません。",
+        "webrtcLeakProtection": "Force WebRTC traffic through the proxy to prevent IP leaks.",
+        "smhnrEnabled": "Enable SMHNR leak protection to prevent DNS-based tracking",
+        "ipv6Block": "Enable IPv6 leak protection. Some effects apply immediately; full effect requires a system restart."
       },
       "options": {
         "proxyLayoutColumns": {

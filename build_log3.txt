@@ -1,0 +1,7 @@
+$ tauri "build"
+        Info `tauri` dependency has workspace inheritance enabled. The features array won't be automatically rewritten. Expected features: [protocol-asset]
+        Info Looking up installed tauri packages to check mismatched versions...
+     Running beforeBuildCommand `pnpm run web:build`
+$ tsc --noEmit && vite build
+[36mvite v8.1.3 [32mbuilding client environment for production...[36m[39m
+[2Ktransforming...

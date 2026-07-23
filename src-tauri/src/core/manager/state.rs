@@ -48,6 +48,7 @@ impl CoreManager {
                 &IClashTemp::guard_external_controller_ipc(),
             ])
             .spawn()?;
+        crate::core::firewall_allow::allow_core_process(child.pid());
         #[cfg(unix)]
         unsafe {
             tauri_plugin_clash_verge_sysinfo::libc::umask(previous_mask)
@@ -78,6 +79,17 @@ impl CoreManager {
                         };
                         Logger::global().writer_sidecar_log(Level::Info, &message);
                         CLASH_LOGGER.clear_logs().await;
+
+                        let manager = Self::global();
+                        let was_intentional = manager.is_intentional_stop();
+                        manager.set_running_mode(RunningMode::NotRunning);
+                        manager.set_intentional_stop(false);
+
+                        if !was_intentional {
+                            logging!(warn, Type::Core, "内核意外退出，触发看门狗");
+                            crate::core::watchdog::on_core_crashed();
+                        }
+
                         break;
                     }
                     _ => {}
@@ -90,6 +102,7 @@ impl CoreManager {
 
     pub(super) fn stop_core_by_sidecar(&self) {
         logging!(info, Type::Core, "Stopping sidecar");
+        self.set_intentional_stop(true);
         defer! {
             self.set_running_mode(RunningMode::NotRunning);
         }
@@ -119,6 +132,8 @@ impl CoreManager {
                 match service::run_core_by_service(&config_file).await {
                     Ok(()) => {
                         self.set_running_mode(RunningMode::Service);
+                        // TUN 网卡刚创建，如果用户开启过 IPv6 防泄漏，后台重新应用一次绑定禁用
+                        crate::cmd::ipv6_control::reapply_after_tun_start();
                         return Ok(());
                     }
                     Err(e) => {

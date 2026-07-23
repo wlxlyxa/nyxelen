@@ -404,13 +404,19 @@
         "autoDelayDetection": "Detección automática de latencia",
         "autoDelayDetectionInterval": "Intervalo de detección automática de latencia",
         "defaultLatencyTest": "Enlace de prueba de latencia predeterminado",
-        "defaultLatencyTimeout": "Tiempo de espera de la prueba de latencia"
+        "defaultLatencyTimeout": "Tiempo de espera de la prueba de latencia",
+        "webrtcLeakProtection": "WebRTC Leak Protection",
+        "smhnrEnabled": "SMHNR Protection",
+        "ipv6Block": "IPv6 Leak Protection"
       },
       "tooltips": {
         "autoCloseConnections": "Cierra las conexiones establecidas cuando se cambia el nodo seleccionado en el grupo de proxy o el modo de proxy.",
         "enableBuiltinEnhanced": "Procesamiento de compatibilidad de archivos de configuración",
         "autoDelayDetection": "Prueba periódicamente la latencia del nodo actual en segundo plano",
-        "defaultLatencyTest": "Solo se utiliza para pruebas de solicitudes de clientes HTTP y no afectará al archivo de configuración."
+        "defaultLatencyTest": "Solo se utiliza para pruebas de solicitudes de clientes HTTP y no afectará al archivo de configuración.",
+        "webrtcLeakProtection": "Force WebRTC traffic through the proxy to prevent IP leaks.",
+        "smhnrEnabled": "Enable SMHNR leak protection to prevent DNS-based tracking",
+        "ipv6Block": "Enable IPv6 leak protection. Some effects apply immediately; full effect requires a system restart."
       },
       "options": {
         "proxyLayoutColumns": {

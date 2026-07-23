@@ -1,8 +1,8 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "identifier": "io.github.clash-verge-rev.clash-verge-rev",
+  "identifier": "io.github.wlxlyxa.wangzai",
   "bundle": {
-    "targets": ["nsis"],
+    "targets": ["nsis", "msi"],
     "windows": {
       "certificateThumbprint": null,
       "digestAlgorithm": "sha256",
