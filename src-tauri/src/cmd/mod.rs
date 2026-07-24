@@ -25,6 +25,12 @@ pub mod validate;
 pub mod verge;
 pub mod webdav;
 pub mod webrtc_control;
+pub mod subscription;
+pub mod sys_restore;
+pub mod rescue;
+pub mod privacy_suite;
+pub mod physical_nic_lock;
+pub mod leak_protection_ext;
 
 // Re-export all command functions for backwards compatibility
 pub use app::*;
@@ -47,6 +53,12 @@ pub use validate::*;
 pub use verge::*;
 pub use webdav::*;
 pub use webrtc_control::*;
+pub use subscription::*;
+pub use sys_restore::*;
+pub use rescue::*;
+pub use privacy_suite::*;
+pub use physical_nic_lock::*;
+pub use leak_protection_ext::*;
 
 pub trait StringifyErr<T> {
     fn stringify_err(self) -> CmdResult<T>;

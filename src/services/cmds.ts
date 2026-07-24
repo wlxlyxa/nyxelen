@@ -26,12 +26,18 @@ export async function patchProfilesConfig(profiles: IProfilesConfig) {
   )
 }
 
+export async function downloadSubscriptionText(url: string) {
+  return invoke<string>('download_subscription_text', { url })
+}
+
 export async function createProfile(
   item: Partial<IProfileItem>,
   fileData?: string | null,
 ) {
   return invoke<void>('create_profile', { item, fileData })
 }
+
+
 
 export async function viewProfile(index: string) {
   return invoke<void>('view_profile', { index })

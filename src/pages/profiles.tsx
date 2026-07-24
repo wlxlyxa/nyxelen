@@ -70,6 +70,7 @@ import {
 } from '@/services/query-client'
 import { useLoadingCache, useSetLoadingCache } from '@/services/states'
 import { debugLog } from '@/utils/debug'
+import { importText, importUrl } from '@/utils/uri-import'
 
 // 与 src-tauri/src/main.rs 的 worker_limit 上限(8)保持一致，避免前后端更新风暴不对齐
 const PROFILE_UPDATE_WORKER_LIMIT = 8
@@ -281,6 +282,108 @@ const ProfilePage = () => {
 
   const currentActivatings = () => {
     return [...new Set([profiles.current ?? ''])].filter(Boolean)
+  }
+
+  const onSmartImport = async function () {
+    const raw = url.trim()
+    if (!raw) return
+    setLoading(true)
+    setDisabled(true)
+    let isHttp = false
+    if (raw.startsWith('http://')) isHttp = true
+    if (raw.startsWith('https://')) isHttp = true
+    let parsed = null
+    try {
+      if (isHttp) {
+        parsed = await importUrl(raw)
+      } else {
+        parsed = importText(raw)
+      }
+    } catch (e) {
+      console.warn('[smart-import] parse/download fail:', e)
+    }
+    if (parsed) {
+      if (parsed.count > 0) {
+        const oldUids = new Set()
+        let arr = []
+        if (profiles.items) arr = profiles.items
+        for (let i = 0; i < arr.length; i++) {
+          if (arr[i]) {
+            if (arr[i].uid) oldUids.add(arr[i].uid)
+          }
+        }
+
+        const uid = 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)
+
+        let urlVal = ''
+        if (isHttp) urlVal = raw
+        const item = {
+          type: 'local',
+          name: parsed.name,
+          desc: parsed.desc,
+          uid: uid,
+          file: uid + '.yaml',
+          url: urlVal,
+        } as IProfileItem
+        await createProfile(item, parsed.yaml)
+        await mutateProfiles()
+        let items = []
+        const latest = await getProfiles()
+        if (latest) {
+          if (latest.items) items = latest.items
+        }
+        if (items.length === 0) {
+          if (profiles.items) items = profiles.items
+        }
+        let ni = null
+        for (let j = 0; j < items.length; j++) {
+          const it = items[j]
+          if (it) {
+            if (it.uid) {
+              if (!oldUids.has(it.uid)) {
+                ni = it
+                break
+              }
+            }
+          }
+        }
+        if (ni) {
+          if (ni.uid) {
+            try {
+              await onSelect(ni.uid, true)
+            } catch (e) {
+              console.warn('[smart-import] activate fail:', e)
+            }
+          }
+        }
+        setUrl('')
+        let tail = '，请手动点选激活'
+        if (ni) tail = '，已自动激活'
+        showNotice.success('已导入 ' + parsed.count + ' 个节点' + tail)
+        setDisabled(false)
+        setLoading(false)
+        return
+      }
+    }
+    if (!isHttp) {
+      showNotice.error('未识别到代理链接')
+      setDisabled(false)
+      setLoading(false)
+      return
+    }
+    try {
+      await importProfile(raw)
+      setUrl('')
+      showNotice.success('已导入 Clash 订阅')
+      await mutateProfiles()
+      await onEnhance(false)
+    } catch (e1) {
+      let msg = '' + e1
+      if (msg.indexOf('object Object') > -1) msg = '导入失败'
+      showNotice.error(msg)
+    }
+    setDisabled(false)
+    setLoading(false)
   }
 
   const onImport = async () => {
@@ -883,7 +986,7 @@ const ProfilePage = () => {
               return
             }
             event.preventDefault()
-            void onImport()
+            void onSmartImport()
           }}
           placeholder={t('profiles.page.importForm.placeholder')}
           slotProps={{
@@ -917,7 +1020,7 @@ const ProfilePage = () => {
           variant="contained"
           size="small"
           sx={{ borderRadius: '6px' }}
-          onClick={onImport}
+          onClick={onSmartImport}
         >
           {t('profiles.page.actions.import')}
         </Button>
