@@ -313,7 +313,6 @@ const ProfilePage = () => {
           }
         }
 
-        const uid = 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)
 
         let urlVal = ''
         if (isHttp) urlVal = raw
@@ -321,12 +320,11 @@ const ProfilePage = () => {
           type: 'local',
           name: parsed.name,
           desc: parsed.desc,
-          uid: uid,
-          file: uid + '.yaml',
           url: urlVal,
         } as IProfileItem
         await createProfile(item, parsed.yaml)
         await mutateProfiles()
+        await enhanceProfiles()
         let items = []
         const latest = await getProfiles()
         if (latest) {
