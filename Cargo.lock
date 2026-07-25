@@ -8669,7 +8669,7 @@ dependencies = [
 
 [[package]]
 name = "wangzai"
-version = "2.6.8"
+version = "2.7.1"
 dependencies = [
  "aes-gcm",
  "anyhow",

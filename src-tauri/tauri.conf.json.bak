@@ -3,7 +3,7 @@
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "bundle": {
     "active": true,
-    "targets": ["nsis"],
+    "targets": ["nsis", "msi"],
     "longDescription": "望仔",
     "icon": [
       "icons/32x32.png",
@@ -18,7 +18,7 @@
     "copyright": "GNU General Public License v3.0 · Based on Clash Verge Rev, modified by 望仔",
     "category": "DeveloperTool",
     "shortDescription": "望仔",
-    "createUpdaterArtifacts": true
+    "createUpdaterArtifacts": false
   },
   "build": {
     "beforeBuildCommand": "pnpm run web:build",
@@ -31,7 +31,7 @@
   "identifier": "io.github.wlxlyxa.wangzai",
  "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEI2QzRBNjkzNTVDM0UzOTcKUldTWDQ4TlZrNmJFdHY0ZmxHQWQ3bklQY003eGZ6RjAzY2dOQWxPMDlQQkJHK0JEdndVd3ZGNWcK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEZENDBEODM3RTMxMzhENzYKUldSMmpSUGpOOWhBL2JjR3JENXZHK3BuMFZPcFViZUhha1Y1V0Vnb25vUUhqeGNkamNwSUMrQk0K",
       "endpoints": [
         "https://gh-proxy.org/https://github.com/wlxlyxa/wangzai/releases/download/updater/update.json",
         "https://ghfast.top/https://github.com/wlxlyxa/wangzai/releases/download/updater/update.json",

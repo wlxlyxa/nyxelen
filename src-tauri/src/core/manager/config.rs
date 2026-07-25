@@ -141,6 +141,7 @@ impl CoreManager {
             Ok(_) => {
                 Config::runtime().await.apply();
                 logging!(info, Type::Core, "Configuration applied");
+                crate::cmd::leak_protection_ext::flush_dns_if_guard_enabled().await;
                 Ok(())
             }
             Err(err) => {
@@ -153,6 +154,7 @@ impl CoreManager {
                     Ok(_) => {
                         Config::runtime().await.apply();
                         logging!(info, Type::Core, "Configuration applied after restart");
+                        crate::cmd::leak_protection_ext::flush_dns_if_guard_enabled().await;
                         Ok(())
                     }
                     Err(err) => {

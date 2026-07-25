@@ -21,6 +21,8 @@
     "notification:default",
     "http:default",
     "http:allow-fetch",
+    "updater:default",
+    "process:default",
     {
       "identifier": "http:default",
       "allow": [{ "url": "https://*/*" }, { "url": "http://*/*" }]

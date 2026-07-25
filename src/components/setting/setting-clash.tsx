@@ -1,11 +1,18 @@
 import { LanRounded, SettingsRounded } from '@mui/icons-material'
-import { MenuItem, Select, TextField, Typography } from '@mui/material'
+import {
+  Button,
+  Input,
+  MenuItem,
+  Select,
+  TextField,
+  Typography,
+} from '@mui/material'
 import { invoke } from '@tauri-apps/api/core'
+import { open } from '@tauri-apps/plugin-dialog'
 import { useLockFn } from 'ahooks'
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { updateGeo, type LogLevel } from 'tauri-plugin-mihomo-api'
-
 import { DialogRef, Switch, TooltipIcon } from '@/components/base'
 import { useClash } from '@/hooks/use-clash'
 import { useClashLog } from '@/hooks/use-clash-log'
@@ -13,13 +20,13 @@ import { useVerge } from '@/hooks/use-verge'
 import { invoke_uwp_tool } from '@/services/cmds'
 import { showNotice } from '@/services/notice-service'
 import getSystem from '@/utils/get-system'
-
 import { ClashCoreViewer } from './mods/clash-core-viewer'
 import { ClashPortViewer } from './mods/clash-port-viewer'
 import { ControllerViewer } from './mods/controller-viewer'
 import { DnsViewer } from './mods/dns-viewer'
 import { HeaderConfiguration } from './mods/external-controller-cors'
 import { GuardState } from './mods/guard-state'
+import { MiscViewer } from './mods/misc-viewer'
 import { NetworkInterfaceViewer } from './mods/network-interface-viewer'
 import { SettingItem, SettingList } from './mods/setting-comp'
 import { TunnelsViewer } from './mods/tunnels-viewer'
@@ -33,19 +40,16 @@ interface Props {
 
 const SettingClash = ({ onError }: Props) => {
   const { t } = useTranslation()
-
   const { clash, version, mutateClash, patchClash } = useClash()
-  const { verge, patchVerge } = useVerge()
+  const { verge, patchVerge, mutateVerge } = useVerge()
   const [, setClashLog] = useClashLog()
-
   const {
     ipv6,
     'allow-lan': allowLan,
     'log-level': logLevel,
     'unified-delay': unifiedDelay,
   } = clash ?? {}
-
-  const { verge_mixed_port } = verge ?? {}
+  const { verge_mixed_port, startup_script } = verge ?? {}
 
   // 独立跟踪DNS设置开关状态
   const [dnsSettingsEnabled, setDnsSettingsEnabled] = useState(() => {
@@ -60,11 +64,19 @@ const SettingClash = ({ onError }: Props) => {
   const dnsRef = useRef<DialogRef>(null)
   const corsRef = useRef<DialogRef>(null)
   const tunnelRef = useRef<DialogRef>(null)
+  const miscRef = useRef<DialogRef>(null)
 
   const onSwitchFormat = (_e: any, value: boolean) => value
+
   const onChangeData = (patch: Partial<IConfigData>) => {
     mutateClash((old) => ({ ...old!, ...patch }), false)
   }
+
+  // 启动脚本 / 杂项 属于 verge 配置，单独一个 mutate 入口（区别于上面的 clash 配置）
+  const onChangeVerge = (patch: any) => {
+    mutateVerge({ ...verge, ...patch }, false)
+  }
+
   const onUpdateGeo = async () => {
     try {
       await updateGeo()
@@ -101,6 +113,8 @@ const SettingClash = ({ onError }: Props) => {
       <DnsViewer ref={dnsRef} />
       <HeaderConfiguration ref={corsRef} />
       <TunnelsViewer ref={tunnelRef} />
+      <MiscViewer ref={miscRef} />
+
       <SettingItem
         label={t('settings.sections.clash.form.fields.allowLan')}
         extra={
@@ -287,6 +301,65 @@ const SettingClash = ({ onError }: Props) => {
       <SettingItem
         label={t('settings.sections.clash.form.fields.tunnels.title')}
         onClick={() => tunnelRef.current?.open()}
+      />
+
+      {/* ===== 从“基础设置”转移过来：启动脚本 + 杂项设置 ===== */}
+      <SettingItem
+        label={t('settings.components.verge.basic.fields.startupScript')}
+      >
+        <GuardState
+          value={startup_script ?? ''}
+          onCatch={onError}
+          onFormat={(e: any) => e.target.value}
+          onChange={(e) => onChangeVerge({ startup_script: e })}
+          onGuard={(e) => patchVerge({ startup_script: e })}
+        >
+          <Input
+            value={startup_script}
+            disabled
+            disableUnderline
+            sx={{ width: 230 }}
+            endAdornment={
+              <>
+                <Button
+                  onClick={async () => {
+                    const selected = await open({
+                      directory: false,
+                      multiple: false,
+                      filters: [
+                        {
+                          name: 'Shell Script',
+                          extensions: ['sh', 'bat', 'ps1'],
+                        },
+                      ],
+                    })
+                    if (selected) {
+                      onChangeVerge({ startup_script: `${selected}` })
+                      patchVerge({ startup_script: `${selected}` })
+                    }
+                  }}
+                >
+                  {t('settings.components.verge.basic.actions.browse')}
+                </Button>
+                {startup_script && (
+                  <Button
+                    onClick={async () => {
+                      onChangeVerge({ startup_script: '' })
+                      patchVerge({ startup_script: '' })
+                    }}
+                  >
+                    {t('shared.actions.clear')}
+                  </Button>
+                )}
+              </>
+            }
+          ></Input>
+        </GuardState>
+      </SettingItem>
+
+      <SettingItem
+        onClick={() => miscRef.current?.open()}
+        label={t('settings.components.verge.basic.fields.misc')}
       />
     </SettingList>
   )

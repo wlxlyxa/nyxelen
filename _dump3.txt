@@ -1,0 +1,2069 @@
+===== src-tauri/src/lib.rs =====
+#![allow(non_snake_case)]
+#![recursion_limit = "512"]
+
+mod cmd;
+pub mod config;
+mod constants;
+mod core;
+mod enhance;
+mod feat;
+mod module;
+mod process;
+pub mod utils;
+
+use crate::constants::files;
+use crate::{
+    core::handle,
+    process::AsyncHandler,
+    utils::{resolve, server},
+};
+use anyhow::Result;
+use clash_verge_logging::{Type, logging};
+use once_cell::sync::OnceCell;
+use tauri::{AppHandle, Manager as _};
+#[cfg(target_os = "macos")]
+use tauri_plugin_autostart::MacosLauncher;
+use tauri_plugin_deep_link::DeepLinkExt as _;
+use tauri_plugin_mihomo::RejectPolicy;
+
+pub static APP_HANDLE: OnceCell<AppHandle> = OnceCell::new();
+/// Application initialization helper functions
+mod app_init {
+    use super::*;
+
+    /// Initialize singleton monitoring for other instances
+    pub fn init_singleton_check() -> Result<()> {
+        AsyncHandler::block_on(async move {
+            logging!(info, Type::Setup, "开始检查单例实例...");
+            server::check_singleton().await?;
+            Ok(())
+        })
+    }
+
+    /// Setup plugins for the Tauri builder
+    pub fn setup_plugins(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<tauri::Wry> {
+        #[allow(unused_mut)]
+        let mut builder = builder
+            .plugin(tauri_plugin_clash_verge_sysinfo::init())
+            .plugin(tauri_plugin_notification::init())
+            .plugin(tauri_plugin_updater::Builder::new().build())
+            .plugin(tauri_plugin_clipboard_manager::init())
+            .plugin(tauri_plugin_process::init())
+            .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+            .plugin(tauri_plugin_fs::init())
+            .plugin(tauri_plugin_dialog::init())
+            .plugin(tauri_plugin_shell::init())
+            .plugin(tauri_plugin_deep_link::init())
+            .plugin(tauri_plugin_http::init())
+            .plugin(
+                tauri_plugin_mihomo::Builder::new()
+                    .protocol(tauri_plugin_mihomo::models::Protocol::LocalSocket)
+                    .socket_path(crate::config::IClashTemp::guard_external_controller_ipc())
+                    .pool_config(
+                        tauri_plugin_mihomo::IpcPoolConfigBuilder::new()
+                            .min_connections(3)
+                            .max_connections(32)
+                            .idle_timeout(std::time::Duration::from_secs(60))
+                            .health_check_interval(std::time::Duration::from_secs(60))
+                            .reject_policy(RejectPolicy::Wait)
+                            .build(),
+                    )
+                    .build(),
+            );
+
+        // Devtools plugin only in debug mode with feature tauri-dev
+        // to avoid duplicated registering of logger since the devtools plugin also registers a logger
+        #[cfg(all(debug_assertions, not(feature = "tokio-trace"), feature = "tauri-dev"))]
+        {
+            builder = builder.plugin(tauri_plugin_devtools::init());
+        }
+        builder
+    }
+
+    /// Setup deep link handling
+    pub fn setup_deep_links(app: &tauri::App) {
+        #[cfg(any(target_os = "linux", all(debug_assertions, windows)))]
+        {
+            logging!(info, Type::Setup, "注册深层链接...");
+            let _ = app.deep_link().register_all();
+        }
+
+        app.deep_link().on_open_url(|event| {
+            let urls = event.urls();
+            AsyncHandler::spawn(move || async move {
+                if let Some(url) = urls.first()
+                    && let Err(e) = resolve::resolve_scheme(url.as_ref()).await
+                {
+                    logging!(error, Type::Setup, "Failed to resolve scheme: {}", e);
+                }
+            });
+        });
+    }
+
+    /// Setup autostart plugin
+    pub fn setup_autostart(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
+        #[cfg(target_os = "macos")]
+        let mut auto_start_plugin_builder = tauri_plugin_autostart::Builder::new();
+        #[cfg(not(target_os = "macos"))]
+        let auto_start_plugin_builder = tauri_plugin_autostart::Builder::new();
+
+        #[cfg(target_os = "macos")]
+        {
+            auto_start_plugin_builder = auto_start_plugin_builder
+                .macos_launcher(MacosLauncher::LaunchAgent)
+                .app_name(&app.config().identifier);
+        }
+        app.handle().plugin(auto_start_plugin_builder.build())?;
+        Ok(())
+    }
+
+    /// Setup window state management
+    pub fn setup_window_state(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
+        logging!(info, Type::Setup, "初始化窗口状态管理...");
+        let window_state_plugin = tauri_plugin_window_state::Builder::new()
+            .with_filename(files::WINDOW_STATE)
+            .with_state_flags(tauri_plugin_window_state::StateFlags::default())
+            .build();
+        app.handle().plugin(window_state_plugin)?;
+        Ok(())
+    }
+
+    pub fn generate_handlers() -> impl Fn(tauri::ipc::Invoke<tauri::Wry>) -> bool + Send + Sync + 'static {
+        tauri::generate_handler![
+            tauri_plugin_clash_verge_sysinfo::commands::get_system_info,
+            tauri_plugin_clash_verge_sysinfo::commands::get_app_uptime,
+            tauri_plugin_clash_verge_sysinfo::commands::app_is_admin,
+            tauri_plugin_clash_verge_sysinfo::commands::export_diagnostic_info,
+            cmd::is_port_in_use,
+            cmd::get_sys_proxy,
+            cmd::get_auto_proxy,
+            cmd::open_app_dir,
+            cmd::open_logs_dir,
+            cmd::open_web_url,
+            cmd::open_core_dir,
+            cmd::get_portable_flag,
+            cmd::enable_webrtc_control,
+            cmd::disable_webrtc_control,
+            cmd::check_webrtc_control_status,
+            cmd::get_network_interfaces,
+            cmd::enable_doh_block,
+            cmd::disable_doh_block,
+            cmd::check_doh_block_status,
+            cmd::enable_smhnr_protection,
+            cmd::disable_smhnr_protection,
+            cmd::check_smhnr_protection_status,
+            cmd::get_system_hostname,
+            cmd::restart_app,
+            cmd::start_core,
+            cmd::stop_core,
+            cmd::restart_core,
+            cmd::get_running_mode,
+            cmd::get_auto_launch_status,
+            cmd::entry_lightweight_mode,
+            cmd::exit_lightweight_mode,
+            cmd::install_service,
+            cmd::uninstall_service,
+            cmd::reinstall_service,
+            cmd::repair_service,
+            cmd::is_service_available,
+            cmd::get_clash_info,
+            cmd::patch_clash_config,
+            cmd::patch_clash_mode,
+            cmd::get_clash_mode,
+            cmd::change_clash_core,
+            cmd::get_runtime_config,
+            cmd::get_runtime_yaml,
+            cmd::get_runtime_exists,
+            cmd::get_runtime_logs,
+            cmd::get_runtime_proxy_chain_config,
+            cmd::update_proxy_chain_config_in_runtime,
+            cmd::invoke_uwp_tool,
+            cmd::copy_clash_env,
+            cmd::sync_tray_proxy_selection,
+            cmd::save_dns_config,
+            cmd::apply_dns_config,
+            cmd::check_dns_config_exists,
+            cmd::get_dns_config_content,
+            cmd::validate_dns_config,
+            cmd::get_clash_logs,
+            cmd::get_verge_config,
+            cmd::patch_verge_config,
+            cmd::test_delay,
+            cmd::get_app_dir,
+            cmd::copy_icon_file,
+            cmd::download_icon_cache,
+            cmd::open_devtools,
+            cmd::exit_app,
+            cmd::get_network_interfaces_info,
+            cmd::get_profiles,
+            cmd::enhance_profiles,
+            cmd::patch_profiles_config,
+            cmd::view_profile,
+            cmd::patch_profile,
+            cmd::create_profile,
+            cmd::import_profile,
+            cmd::reorder_profile,
+            cmd::update_profile,
+            cmd::delete_profile,
+            cmd::read_profile_file,
+            cmd::save_profile_file,
+            cmd::get_next_update_time,
+            cmd::script_validate_notice,
+            cmd::validate_script_file,
+            cmd::create_local_backup,
+            cmd::list_local_backup,
+            cmd::delete_local_backup,
+            cmd::restore_local_backup,
+            cmd::import_local_backup,
+            cmd::export_local_backup,
+            cmd::create_webdav_backup,
+            cmd::save_webdav_config,
+            cmd::list_webdav_backup,
+            cmd::delete_webdav_backup,
+            cmd::restore_webdav_backup,
+            cmd::get_unlock_items,
+            cmd::check_media_unlock,
+            cmd::kill_switch_status,
+            cmd::kill_switch_test_block,
+            cmd::kill_switch_manual_unblock,
+            cmd::enable_ipv6_block,
+            cmd::disable_ipv6_block,
+            cmd::check_ipv6_block_status,
+        ]
+    }
+}
+
+pub fn run() {
+    if app_init::init_singleton_check().is_err() {
+        return;
+    }
+
+    #[cfg(target_os = "linux")]
+    utils::linux::workarounds::apply_nvidia_dmabuf_renderer_workaround();
+    #[cfg(target_os = "linux")]
+    utils::linux::workarounds::apply_wayland_webkit_fix();
+
+    let _ = utils::dirs::init_portable_flag();
+
+    let builder = app_init::setup_plugins(tauri::Builder::default())
+        .setup(|app| {
+            // Logger may not be ready yet, so mirror setup panics to stderr.
+            fn log_setup_panic(stage: &str, panic: Box<dyn std::any::Any + Send>) {
+                let msg = panic
+                    .downcast_ref::<&str>()
+                    .map(|s| (*s).to_string())
+                    .or_else(|| panic.downcast_ref::<String>().cloned())
+                    .unwrap_or_else(|| "unknown panic payload".to_string());
+                eprintln!("[clash-verge] panic during app setup ({stage}), continuing in degraded mode: {msg}");
+                logging!(
+                    error,
+                    Type::Setup,
+                    "setup 阶段 panic（{}）—— 降级继续启动: {}",
+                    stage,
+                    msg
+                );
+            }
+
+            // Prevent setup panics from aborting across macOS applicationDidFinishLaunching.
+            // Keep pre-init separate so window/core/tray startup is still scheduled after a panic.
+            if let Err(panic) = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                #[allow(clippy::expect_used)]
+                APP_HANDLE
+                    .set(app.app_handle().clone())
+                    .expect("failed to set global app handle");
+
+                if let Err(e) = resolve::init_work_dir_and_logger() {
+                    logging!(error, Type::Setup, "Failed to init work dir/logger: {}", e);
+                }
+
+                logging!(info, Type::Setup, "开始应用初始化...");
+                if let Err(e) = app_init::setup_autostart(app) {
+                    logging!(error, Type::Setup, "Failed to setup autostart: {}", e);
+                }
+
+                app_init::setup_deep_links(app);
+
+                if let Err(e) = app_init::setup_window_state(app) {
+                    logging!(error, Type::Setup, "Failed to setup window state: {}", e);
+                }
+            })) {
+                log_setup_panic("pre-init", panic);
+            }
+
+            // Always attempt the startup stage, even if pre-init degraded.
+            if let Err(panic) = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                resolve::resolve_setup_async();
+                resolve::resolve_setup_sync();
+                resolve::init_signal();
+                logging!(info, Type::Setup, "初始化已启动");
+            })) {
+                log_setup_panic("window-core", panic);
+            }
+
+            Ok(())
+        })
+        .invoke_handler(app_init::generate_handlers());
+
+    // macOS 内存压力下 WKWebView 渲染进程可能被系统终止（表现为白屏），
+    // 注册恢复钩子：清理孤儿 WebSocket 订阅防止内存泄漏；窗口可见时立即 reload
+    // 恢复页面，不可见时延迟到用户下次打开窗口再 reload。
+    #[cfg(target_os = "macos")]
+    let builder = builder.on_web_content_process_terminate(resolve::window::on_web_content_process_terminated);
+
+    mod event_handlers {
+        #[cfg(target_os = "macos")]
+        use crate::module::lightweight;
+        use crate::utils::window_manager::WindowManager;
+        use crate::{
+            config::Config,
+            core::{self, handle, hotkey},
+            process::AsyncHandler,
+        };
+        use clash_verge_logging::{Type, logging};
+        use tauri::AppHandle;
+        #[cfg(target_os = "macos")]
+        use tauri::Manager as _;
+
+        pub fn handle_ready_resumed(_app_handle: &AppHandle) {
+            if handle::Handle::global().is_exiting() {
+                logging!(debug, Type::System, "应用正在退出，跳过处理");
+                return;
+            }
+
+            logging!(info, Type::System, "应用就绪");
+
+            #[cfg(target_os = "macos")]
+            if let Some(window) = _app_handle.get_webview_window("main") {
+                let _ = window.set_title("望仔");
+            }
+        }
+
+        #[cfg(target_os = "macos")]
+        pub async fn handle_reopen(has_visible_windows: bool) {
+            if lightweight::is_in_lightweight_mode() {
+                lightweight::exit_lightweight_mode().await;
+                return;
+            }
+
+            if !has_visible_windows {
+                handle::Handle::global().set_activation_policy_regular();
+                let _ = WindowManager::show_main_window().await;
+            }
+        }
+
+        pub fn handle_window_close(api: &tauri::WindowEvent) {
+            #[cfg(target_os = "macos")]
+            handle::Handle::global().set_activation_policy_accessory();
+
+            if core::handle::Handle::global().is_exiting() {
+                return;
+            }
+
+            if let tauri::WindowEvent::CloseRequested { api, .. } = api {
+                api.prevent_close();
+                if let Some(window) = WindowManager::get_main_window() {
+                    let _ = window.hide();
+                }
+            }
+        }
+
+        pub fn handle_window_focus(focused: bool) {
+            AsyncHandler::spawn(move || async move {
+                let is_enable_global_hotkey = Config::verge().await.data_arc().enable_global_hotkey.unwrap_or(true);
+
+                if focused {
+                    #[cfg(target_os = "macos")]
+                    {
+                        use crate::core::hotkey::SystemHotkey;
+                        let _ = hotkey::Hotkey::global()
+                            .register_system_hotkey(SystemHotkey::CmdQ)
+                            .await;
+                        let _ = hotkey::Hotkey::global()
+                            .register_system_hotkey(SystemHotkey::CmdW)
+                            .await;
+                    }
+                    if !is_enable_global_hotkey {
+                        let _ = hotkey::Hotkey::global().init(false).await;
+                    }
+                    return;
+                }
+
+                #[cfg(target_os = "macos")]
+                {
+                    use crate::core::hotkey::SystemHotkey;
+                    let _ = hotkey::Hotkey::global().unregister_system_hotkey(SystemHotkey::CmdQ);
+                    let _ = hotkey::Hotkey::global().unregister_system_hotkey(SystemHotkey::CmdW);
+                }
+
+                if !is_enable_global_hotkey {
+                    let _ = hotkey::Hotkey::global().reset();
+                }
+            });
+        }
+
+        #[cfg(target_os = "macos")]
+        pub fn handle_window_destroyed() {
+            use crate::core::hotkey::SystemHotkey;
+            AsyncHandler::spawn(move || async move {
+                let _ = hotkey::Hotkey::global().unregister_system_hotkey(SystemHotkey::CmdQ);
+                let _ = hotkey::Hotkey::global().unregister_system_hotkey(SystemHotkey::CmdW);
+                let is_enable_global_hotkey = Config::verge().await.data_arc().enable_global_hotkey.unwrap_or(true);
+                if !is_enable_global_hotkey {
+                    let _ = hotkey::Hotkey::global().reset();
+                }
+            });
+        }
+    }
+
+    #[cfg(feature = "clippy")]
+    let context = tauri::test::mock_context(tauri::test::noop_assets());
+    #[cfg(feature = "clippy")]
+    let app = builder.build(context).unwrap_or_else(|e| {
+        logging!(error, Type::Setup, "Failed to build Tauri application: {}", e);
+        std::process::exit(1);
+    });
+
+    #[cfg(not(feature = "clippy"))]
+    let app = builder.build(tauri::generate_context!()).unwrap_or_else(|e| {
+        logging!(error, Type::Setup, "Failed to build Tauri application: {}", e);
+        std::process::exit(1);
+    });
+
+    app.run(|app_handle, e| match e {
+        tauri::RunEvent::Ready | tauri::RunEvent::Resumed => {
+            if core::handle::Handle::global().is_exiting() {
+                return;
+            }
+            event_handlers::handle_ready_resumed(app_handle);
+        }
+        #[cfg(target_os = "macos")]
+        tauri::RunEvent::Reopen {
+            has_visible_windows, ..
+        } => {
+            if core::handle::Handle::global().is_exiting() {
+                return;
+            }
+            AsyncHandler::spawn(move || async move {
+                event_handlers::handle_reopen(has_visible_windows).await;
+            });
+        }
+        tauri::RunEvent::Exit => AsyncHandler::block_on(async {
+            // Windows session ending currently reaches Tao as WM_ENDSESSION and
+            // destroys the loop without a preventable ExitRequested event.
+            if !handle::Handle::global().is_exiting() {
+                feat::quit().await;
+            }
+            logging!(info, Type::System, "Application exited");
+        }),
+        #[allow(unused_variables)]
+        tauri::RunEvent::ExitRequested { api, code, .. } => {
+            if module::lightweight::is_in_lightweight_mode() && !handle::Handle::global().is_exiting() {
+                api.prevent_exit();
+            } else if code.is_none() {
+                api.prevent_exit();
+                if !handle::Handle::global().is_exiting() {
+                    AsyncHandler::block_on(async {
+                        feat::quit().await;
+                    });
+                }
+            }
+        }
+        tauri::RunEvent::WindowEvent { label, event, .. } if label == "main" => match event {
+            tauri::WindowEvent::CloseRequested { .. } => {
+                event_handlers::handle_window_close(&event);
+            }
+            tauri::WindowEvent::Focused(focused) => {
+                // 兜底：原生取消最小化只触发 Focused、不走 activate_window（macOS）
+                #[cfg(target_os = "macos")]
+                if focused {
+                    crate::utils::resolve::window::reload_main_window_if_needed();
+                }
+                event_handlers::handle_window_focus(focused);
+            }
+            #[cfg(target_os = "macos")]
+            tauri::WindowEvent::Destroyed => {
+                event_handlers::handle_window_destroyed();
+            }
+            _ => {}
+        },
+        _ => {}
+    });
+}
+===== src-tauri/src/cmd/mod.rs =====
+use anyhow::Result;
+use smartstring::alias::String;
+
+pub type CmdResult<T = ()> = Result<T, String>;
+
+// Command modules
+pub mod app;
+pub mod backup;
+pub mod clash;
+pub mod dns_leak_protection;
+pub mod ipv6_control;
+pub mod kill_switch;
+pub mod license;
+pub mod lightweight;
+pub mod media_unlock_checker;
+pub mod network;
+pub mod profile;
+pub mod proxy;
+pub mod runtime;
+pub mod save_profile;
+pub mod service;
+pub mod system;
+pub mod uwp;
+pub mod validate;
+pub mod verge;
+pub mod webdav;
+pub mod webrtc_control;
+
+// Re-export all command functions for backwards compatibility
+pub use app::*;
+pub use backup::*;
+pub use clash::*;
+pub use dns_leak_protection::*;
+pub use ipv6_control::*;
+pub use kill_switch::*;
+pub use lightweight::*;
+pub use media_unlock_checker::*;
+pub use network::*;
+pub use profile::*;
+pub use proxy::*;
+pub use runtime::*;
+pub use save_profile::*;
+pub use service::*;
+pub use system::*;
+pub use uwp::*;
+pub use validate::*;
+pub use verge::*;
+pub use webdav::*;
+pub use webrtc_control::*;
+
+pub trait StringifyErr<T> {
+    fn stringify_err(self) -> CmdResult<T>;
+    fn stringify_err_log<F>(self, log_fn: F) -> CmdResult<T>
+    where
+        F: Fn(&str);
+}
+
+impl<T, E: std::fmt::Display> StringifyErr<T> for Result<T, E> {
+    fn stringify_err(self) -> CmdResult<T> {
+        self.map_err(|e| e.to_string().into())
+    }
+
+    fn stringify_err_log<F>(self, log_fn: F) -> CmdResult<T>
+    where
+        F: Fn(&str),
+    {
+        self.map_err(|e| {
+            let msg = String::from(e.to_string());
+            log_fn(&msg);
+            msg
+        })
+    }
+}
+===== src-tauri/src/config/verge.rs =====
+use crate::config::Config;
+use crate::{
+    config::{DEFAULT_PAC, deserialize_encrypted, serialize_encrypted},
+    utils::{dirs, help},
+};
+use anyhow::Result;
+use clash_verge_logging::{Type, logging};
+use log::LevelFilter;
+use serde::{Deserialize, Serialize};
+use smartstring::alias::String;
+
+/// ### `verge.yaml` schema
+#[derive(Default, Debug, Clone, Deserialize, Serialize)]
+pub struct IVerge {
+    /// app log level
+    /// silent | error | warn | info | debug | trace
+    pub app_log_level: Option<String>,
+
+    /// app log max size in KB
+    pub app_log_max_size: Option<u64>,
+
+    /// app log max count
+    pub app_log_max_count: Option<usize>,
+
+    // i18n
+    pub language: Option<String>,
+
+    /// `light` or `dark` or `system`
+    pub theme_mode: Option<String>,
+
+    /// tray click event
+    pub tray_event: Option<String>,
+
+    /// copy env type
+    pub env_type: Option<String>,
+
+    /// start page
+    pub start_page: Option<String>,
+    /// startup script path
+    pub startup_script: Option<String>,
+
+    /// enable traffic graph default is true
+    pub traffic_graph: Option<bool>,
+
+    /// show memory info (only for Clash Meta)
+    pub enable_memory_usage: Option<bool>,
+
+    /// enable group icon
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub enable_group_icon: Option<bool>,
+
+    /// pause render traffic stats on blur
+    pub pause_render_traffic_stats_on_blur: Option<bool>,
+
+    /// common tray icon
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub common_tray_icon: Option<bool>,
+
+    /// tray icon
+    #[cfg(target_os = "macos")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tray_icon: Option<String>,
+
+    /// menu icon
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub menu_icon: Option<String>,
+
+    /// menu order
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub menu_order: Option<Vec<String>>,
+
+    /// toast / notice position on screen
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub notice_position: Option<String>,
+
+    /// collapse navigation bar
+    pub collapse_navbar: Option<bool>,
+
+    /// sysproxy tray icon
+    pub sysproxy_tray_icon: Option<bool>,
+
+    /// tun tray icon
+    pub tun_tray_icon: Option<bool>,
+
+    /// clash tun mode
+    pub enable_tun_mode: Option<bool>,
+
+    /// can the app auto startup
+    pub enable_auto_launch: Option<bool>,
+
+    /// not show the window on launch
+    pub enable_silent_start: Option<bool>,
+
+    /// set system proxy
+    pub enable_system_proxy: Option<bool>,
+
+    /// enable proxy guard
+    pub enable_proxy_guard: Option<bool>,
+
+    /// enable bypass format check
+    pub enable_bypass_check: Option<bool>,
+
+    /// enable dns settings - this controls whether dns_config.yaml is applied
+    pub enable_dns_settings: Option<bool>,
+
+    /// always use default bypass
+    pub use_default_bypass: Option<bool>,
+
+    /// set system proxy bypass
+    pub system_proxy_bypass: Option<String>,
+
+    /// proxy guard duration
+    pub proxy_guard_duration: Option<u64>,
+
+    /// use pac mode
+    pub proxy_auto_config: Option<bool>,
+
+    /// pac script content
+    pub pac_file_content: Option<String>,
+
+    /// proxy host address
+    pub proxy_host: Option<String>,
+
+    /// theme setting
+    pub theme_setting: Option<IVergeTheme>,
+
+    /// web ui list
+    pub web_ui_list: Option<Vec<String>>,
+
+    /// clash core path
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub clash_core: Option<String>,
+
+    /// hotkey map
+    /// format: {func},{key}
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hotkeys: Option<Vec<String>>,
+
+    /// enable global hotkey
+    pub enable_global_hotkey: Option<bool>,
+
+    /// 首页卡片设置
+    /// 控制首页各个卡片的显示和隐藏
+    pub home_cards: Option<serde_json::Value>,
+
+    /// 切换代理时自动关闭连接
+    pub auto_close_connection: Option<bool>,
+
+    /// 是否自动检查更新
+    pub auto_check_update: Option<bool>,
+
+    /// 默认的延迟测试连接
+    pub default_latency_test: Option<String>,
+
+    /// 默认的延迟测试超时时间
+    pub default_latency_timeout: Option<i16>,
+
+    /// 是否自动检测当前节点延迟
+    pub enable_auto_delay_detection: Option<bool>,
+
+    /// 自动检测当前节点延迟的间隔（分钟）
+    pub auto_delay_detection_interval_minutes: Option<u64>,
+
+    /// 是否使用内部的脚本支持，默认为真
+    pub enable_builtin_enhanced: Option<bool>,
+
+    /// proxy 页面布局 列数
+    pub proxy_layout_column: Option<u8>,
+
+    /// 测试站列表
+    pub test_list: Option<Vec<IVergeTestItem>>,
+
+    /// 日志清理
+    /// 0: 不清理; 1: 1天；2: 7天; 3: 30天; 4: 90天
+    pub auto_log_clean: Option<i32>,
+
+    /// Enable scheduled automatic backups
+    pub enable_auto_backup_schedule: Option<bool>,
+
+    /// Automatic backup interval in hours
+    pub auto_backup_interval_hours: Option<u64>,
+
+    /// Create backups automatically when critical configs change
+    pub auto_backup_on_change: Option<bool>,
+
+    /// verge 的各种 port 用于覆盖 clash 的各种 port
+    #[cfg(not(target_os = "windows"))]
+    pub verge_redir_port: Option<u16>,
+
+    #[cfg(not(target_os = "windows"))]
+    pub verge_redir_enabled: Option<bool>,
+
+    #[cfg(target_os = "linux")]
+    pub verge_tproxy_port: Option<u16>,
+
+    #[cfg(target_os = "linux")]
+    pub verge_tproxy_enabled: Option<bool>,
+
+    pub verge_mixed_port: Option<u16>,
+
+    pub verge_socks_port: Option<u16>,
+
+    pub verge_socks_enabled: Option<bool>,
+
+    pub verge_port: Option<u16>,
+
+    pub verge_http_enabled: Option<bool>,
+
+    /// WebDAV 配置 (加密存储)
+    #[serde(
+        serialize_with = "serialize_encrypted",
+        deserialize_with = "deserialize_encrypted",
+        skip_serializing_if = "Option::is_none",
+        default
+    )]
+    pub webdav_url: Option<String>,
+
+    /// WebDAV 用户名 (加密存储)
+    #[serde(
+        serialize_with = "serialize_encrypted",
+        deserialize_with = "deserialize_encrypted",
+        skip_serializing_if = "Option::is_none",
+        default
+    )]
+    pub webdav_username: Option<String>,
+
+    /// WebDAV 密码 (加密存储)
+    #[serde(
+        serialize_with = "serialize_encrypted",
+        deserialize_with = "deserialize_encrypted",
+        skip_serializing_if = "Option::is_none",
+        default
+    )]
+    pub webdav_password: Option<String>,
+
+    #[cfg(target_os = "macos")]
+    pub enable_tray_speed: Option<bool>,
+
+    // pub enable_tray_icon: Option<bool>,
+    /// show proxy groups directly on tray root menu
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tray_proxy_groups_display_mode: Option<String>,
+    /// show outbound modes directly on tray root menu
+    pub tray_inline_outbound_modes: Option<bool>,
+
+    /// 自动进入轻量模式
+    pub enable_auto_light_weight_mode: Option<bool>,
+
+    /// 自动进入轻量模式的延迟（分钟）
+    pub auto_light_weight_minutes: Option<u64>,
+
+    /// 启用代理页面自动滚动
+    pub enable_hover_jump_navigator: Option<bool>,
+
+    /// 代理页面自动滚动延迟（毫秒）
+    pub hover_jump_navigator_delay: Option<u64>,
+
+    /// 启用外部控制器
+    pub enable_external_controller: Option<bool>,
+
+    /// WebRTC 防泄漏开关
+    pub webrtc_leak_protection: Option<bool>,
+
+    /// SMHNR（Windows 智能多宿主名称解析）防泄漏开关
+    pub smhnr_enabled: Option<bool>,
+
+    /// 全局禁用 IPv6
+    pub ipv6_block: Option<bool>,
+}
+
+#[derive(Default, Debug, Clone, Deserialize, Serialize)]
+pub struct IVergeTestItem {
+    pub uid: Option<String>,
+    pub name: Option<String>,
+    pub icon: Option<String>,
+    pub url: Option<String>,
+}
+
+#[derive(Default, Debug, Clone, Deserialize, Serialize)]
+pub struct IVergeTheme {
+    pub primary_color: Option<String>,
+    pub secondary_color: Option<String>,
+    pub primary_text: Option<String>,
+    pub secondary_text: Option<String>,
+
+    pub info_color: Option<String>,
+    pub error_color: Option<String>,
+    pub warning_color: Option<String>,
+    pub success_color: Option<String>,
+
+    pub font_family: Option<String>,
+    pub css_injection: Option<String>,
+}
+
+impl IVerge {
+    /// 有效的clash核心名称
+    pub const VALID_CLASH_CORES: &'static [&'static str] = &["verge-mihomo", "verge-mihomo-alpha"];
+
+    /// 验证并修正配置文件中的clash_core值
+    pub async fn validate_and_fix_config() -> Result<()> {
+        let config_path = dirs::verge_path()?;
+        let mut config = match help::read_yaml::<Self>(&config_path).await {
+            Ok(config) => config,
+            Err(_) => Self::template(),
+        };
+
+        let mut needs_fix = false;
+
+        if let Some(ref core) = config.clash_core {
+            let core_str = core.trim();
+            if core_str.is_empty() || !Self::VALID_CLASH_CORES.contains(&core_str) {
+                logging!(
+                    warn,
+                    Type::Config,
+                    "启动时发现无效的clash_core配置: '{}', 将自动修正为 'verge-mihomo'",
+                    core
+                );
+                config.clash_core = Some("verge-mihomo".into());
+                needs_fix = true;
+            }
+        } else {
+            logging!(
+                info,
+                Type::Config,
+                "启动时发现未配置clash_core, 将设置为默认值 'verge-mihomo'"
+            );
+            config.clash_core = Some("verge-mihomo".into());
+            needs_fix = true;
+        }
+
+        // 修正后保存配置
+        if needs_fix {
+            logging!(info, Type::Config, "正在保存修正后的配置文件...");
+            help::save_yaml(&config_path, &config, Some("# Clash Verge Config")).await?;
+            logging!(info, Type::Config, "配置文件修正完成，需要重新加载配置");
+
+            Self::reload_config_after_fix(config).await?;
+        } else {
+            logging!(info, Type::Config, "clash_core配置验证通过: {:?}", config.clash_core);
+        }
+
+        Ok(())
+    }
+
+    /// 配置修正后重新加载配置
+    async fn reload_config_after_fix(updated_config: Self) -> Result<()> {
+        logging!(
+            info,
+            Type::Config,
+            "内存配置已强制更新，新的clash_core: {:?}",
+            &updated_config.clash_core
+        );
+
+        let config_draft = Config::verge().await;
+        config_draft.edit_draft(|d| {
+            *d = updated_config;
+        });
+        config_draft.apply();
+
+        Ok(())
+    }
+
+    pub fn get_valid_clash_core(&self) -> String {
+        self.clash_core.clone().unwrap_or_else(|| "verge-mihomo".into())
+    }
+
+    pub async fn new() -> Self {
+        match dirs::verge_path() {
+            Ok(path) => match help::read_yaml::<Self>(&path).await {
+                Ok(mut config) => {
+                    // compatibility
+                    if let Some(start_page) = config.start_page.clone()
+                        && start_page == "/home"
+                    {
+                        config.start_page = Some(String::from("/"));
+                    }
+                    config
+                }
+                Err(err) => {
+                    logging!(error, Type::Config, "{err}");
+                    Self::template()
+                }
+            },
+            Err(err) => {
+                logging!(error, Type::Config, "{err}");
+                Self::template()
+            }
+        }
+    }
+
+    pub fn template() -> Self {
+        Self {
+            app_log_max_size: Some(128),
+            app_log_max_count: Some(8),
+            clash_core: Some("verge-mihomo".into()),
+            language: Some(clash_verge_i18n::system_language().into()),
+            theme_mode: Some("dark".into()),
+            #[cfg(not(target_os = "windows"))]
+            env_type: Some("bash".into()),
+            #[cfg(target_os = "windows")]
+            env_type: Some("powershell".into()),
+            start_page: Some("/".into()),
+            traffic_graph: Some(true),
+            enable_memory_usage: Some(true),
+            enable_group_icon: Some(true),
+            pause_render_traffic_stats_on_blur: Some(true),
+            #[cfg(target_os = "macos")]
+            tray_icon: Some("monochrome".into()),
+            menu_icon: Some("monochrome".into()),
+            notice_position: Some("top-right".into()),
+            collapse_navbar: Some(false),
+            common_tray_icon: Some(false),
+            sysproxy_tray_icon: Some(false),
+            tun_tray_icon: Some(false),
+            enable_auto_launch: Some(false),
+            enable_silent_start: Some(false),
+            enable_hover_jump_navigator: Some(true),
+            hover_jump_navigator_delay: Some(280),
+            enable_system_proxy: Some(false),
+            proxy_auto_config: Some(false),
+            pac_file_content: Some(DEFAULT_PAC.into()),
+            proxy_host: Some("127.0.0.1".into()),
+            #[cfg(not(target_os = "windows"))]
+            verge_redir_port: Some(7895),
+            #[cfg(not(target_os = "windows"))]
+            verge_redir_enabled: Some(false),
+            #[cfg(target_os = "linux")]
+            verge_tproxy_port: Some(7896),
+            #[cfg(target_os = "linux")]
+            verge_tproxy_enabled: Some(false),
+            verge_mixed_port: Some(7897),
+            verge_socks_port: Some(7898),
+            verge_socks_enabled: Some(false),
+            verge_port: Some(7899),
+            verge_http_enabled: Some(false),
+            enable_proxy_guard: Some(false),
+            enable_bypass_check: Some(true),
+            use_default_bypass: Some(true),
+            proxy_guard_duration: Some(30),
+            auto_close_connection: Some(true),
+            auto_check_update: Some(true),
+            enable_builtin_enhanced: Some(true),
+            auto_log_clean: Some(2), // 1: 1天, 2: 7天, 3: 30天, 4: 90天
+            enable_auto_backup_schedule: Some(false),
+            auto_backup_interval_hours: Some(24),
+            auto_backup_on_change: Some(true),
+            webdav_url: None,
+            webdav_username: None,
+            webdav_password: None,
+            #[cfg(target_os = "macos")]
+            enable_tray_speed: Some(false),
+            // enable_tray_icon: Some(true),
+            tray_proxy_groups_display_mode: Some("default".into()),
+            tray_inline_outbound_modes: Some(false),
+            enable_global_hotkey: Some(true),
+            enable_auto_light_weight_mode: Some(false),
+            auto_light_weight_minutes: Some(10),
+            enable_dns_settings: Some(false),
+            home_cards: None,
+            enable_external_controller: Some(false),
+            ..Self::default()
+        }
+    }
+
+    /// Save IVerge App Config
+    pub async fn save_file(&self) -> Result<()> {
+        help::save_yaml(&dirs::verge_path()?, &self, Some("# Clash Verge Config")).await
+    }
+
+    /// patch verge config
+    /// only save to file
+    #[allow(clippy::cognitive_complexity)]
+    pub fn patch_config(&mut self, patch: &Self) {
+        macro_rules! patch {
+            ($key: tt) => {
+                if patch.$key.is_some() {
+                    self.$key = patch.$key.clone();
+                }
+            };
+        }
+
+        patch!(app_log_level);
+        patch!(app_log_max_size);
+        patch!(app_log_max_count);
+
+        patch!(language);
+        patch!(theme_mode);
+        patch!(tray_event);
+        patch!(env_type);
+        patch!(start_page);
+        patch!(startup_script);
+        patch!(traffic_graph);
+        patch!(enable_memory_usage);
+        patch!(enable_group_icon);
+        patch!(pause_render_traffic_stats_on_blur);
+        #[cfg(target_os = "macos")]
+        patch!(tray_icon);
+        patch!(menu_icon);
+        patch!(menu_order);
+        patch!(notice_position);
+        patch!(collapse_navbar);
+        patch!(common_tray_icon);
+        patch!(sysproxy_tray_icon);
+        patch!(tun_tray_icon);
+
+        patch!(enable_tun_mode);
+        patch!(enable_auto_launch);
+        patch!(enable_silent_start);
+        patch!(enable_hover_jump_navigator);
+        patch!(hover_jump_navigator_delay);
+        #[cfg(not(target_os = "windows"))]
+        patch!(verge_redir_port);
+        #[cfg(not(target_os = "windows"))]
+        patch!(verge_redir_enabled);
+        #[cfg(target_os = "linux")]
+        patch!(verge_tproxy_port);
+        #[cfg(target_os = "linux")]
+        patch!(verge_tproxy_enabled);
+        patch!(verge_mixed_port);
+        patch!(verge_socks_port);
+        patch!(verge_socks_enabled);
+        patch!(verge_port);
+        patch!(verge_http_enabled);
+        patch!(enable_system_proxy);
+        patch!(enable_proxy_guard);
+        patch!(enable_bypass_check);
+        patch!(use_default_bypass);
+        patch!(system_proxy_bypass);
+        patch!(proxy_guard_duration);
+        patch!(proxy_auto_config);
+        patch!(pac_file_content);
+        patch!(proxy_host);
+        patch!(theme_setting);
+        patch!(web_ui_list);
+        patch!(webrtc_leak_protection);
+        patch!(ipv6_block);
+        patch!(smhnr_enabled);
+        patch!(enable_global_hotkey);
+        patch!(clash_core);
+        patch!(hotkeys);
+
+        patch!(auto_close_connection);
+        patch!(auto_check_update);
+        patch!(default_latency_test);
+        patch!(default_latency_timeout);
+        patch!(enable_auto_delay_detection);
+        patch!(auto_delay_detection_interval_minutes);
+        patch!(enable_builtin_enhanced);
+        patch!(proxy_layout_column);
+        patch!(test_list);
+        patch!(auto_log_clean);
+        patch!(enable_auto_backup_schedule);
+        patch!(auto_backup_interval_hours);
+        patch!(auto_backup_on_change);
+
+        patch!(webdav_url);
+        patch!(webdav_username);
+        patch!(webdav_password);
+        #[cfg(target_os = "macos")]
+        patch!(enable_tray_speed);
+        // patch!(enable_tray_icon);
+        patch!(tray_proxy_groups_display_mode);
+        patch!(tray_inline_outbound_modes);
+        patch!(enable_auto_light_weight_mode);
+        patch!(auto_light_weight_minutes);
+        patch!(enable_dns_settings);
+        patch!(home_cards);
+        patch!(enable_external_controller);
+    }
+
+    pub const fn get_singleton_port() -> u16 {
+        crate::constants::network::ports::SINGLETON_SERVER
+    }
+
+    /// 获取日志等级
+    pub fn get_log_level(&self) -> LevelFilter {
+        if let Some(level) = self.app_log_level.as_ref() {
+            match level.to_lowercase().as_str() {
+                "silent" => LevelFilter::Off,
+                "error" => LevelFilter::Error,
+                "warn" => LevelFilter::Warn,
+                "info" => LevelFilter::Info,
+                "debug" => LevelFilter::Debug,
+                "trace" => LevelFilter::Trace,
+                _ => LevelFilter::Info,
+            }
+        } else {
+            LevelFilter::Info
+        }
+    }
+}
+===== src-tauri/src/cmd/webrtc_control.rs =====
+//! 望仔 · WebRTC 防泄漏控制
+//! 原理：写入 Chrome / Edge 各自官方支持的企业策略注册表项，
+//! 强制这两个浏览器的 WebRTC 流量必须走代理，不允许绕过代理直连暴露真实 IP。
+//!
+//! 注意：Chrome 和 Edge 虽然同为 Chromium 内核，但这个策略的命名和取值格式
+//! 是各自独立定义的，不能直接照搬：
+//!   - Chrome: 值名 WebRtcIPHandling，取值 disable_non_proxied_udp（下划线小写）
+//!   - Edge:   值名 WebRtcLocalhostIpHandling，取值 DisableNonProxiedUdp（驼峰）
+//!
+//! 副作用（已告知用户）：Chrome/Edge 设置页会显示"您的浏览器由您的组织管理"提示，
+//! 这是 Windows 展示托管策略的标准行为。
+
+use super::CmdResult;
+
+struct BrowserPolicy {
+    reg_path: &'static str,
+    value_name: &'static str,
+    value_data: &'static str,
+}
+
+const CHROME_POLICY: BrowserPolicy = BrowserPolicy {
+    reg_path: r"SOFTWARE\Policies\Google\Chrome",
+    value_name: "WebRtcIPHandling",
+    value_data: "disable_non_proxied_udp",
+};
+
+const EDGE_POLICY: BrowserPolicy = BrowserPolicy {
+    reg_path: r"SOFTWARE\Policies\Microsoft\Edge",
+    value_name: "WebRtcLocalhostIpHandling",
+    value_data: "disable_non_proxied_udp",
+};
+
+#[cfg(windows)]
+fn write_policy(policy: &BrowserPolicy) -> Result<(), String> {
+    use winreg::RegKey;
+    use winreg::enums::*;
+
+    let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
+    let (key, _disposition) = hklm
+        .create_subkey(policy.reg_path)
+        .map_err(|e| format!("写入注册表失败（可能需要以管理员身份运行望仔）: {e}"))?;
+    key.set_value(policy.value_name, &policy.value_data)
+        .map_err(|e| format!("设置策略值失败: {e}"))?;
+    Ok(())
+}
+
+#[cfg(windows)]
+fn remove_policy(policy: &BrowserPolicy) -> Result<(), String> {
+    use winreg::RegKey;
+    use winreg::enums::*;
+
+    let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
+    match hklm.open_subkey_with_flags(policy.reg_path, KEY_SET_VALUE) {
+        Ok(key) => {
+            let _ = key.delete_value(policy.value_name);
+            Ok(())
+        }
+        Err(_) => Ok(()),
+    }
+}
+
+#[cfg(windows)]
+fn read_policy(policy: &BrowserPolicy) -> bool {
+    use winreg::RegKey;
+
+    let hklm = RegKey::predef(winreg::enums::HKEY_LOCAL_MACHINE);
+    match hklm.open_subkey(policy.reg_path) {
+        Ok(key) => {
+            let value: Result<String, _> = key.get_value(policy.value_name);
+            matches!(value, Ok(v) if v == policy.value_data)
+        }
+        Err(_) => false,
+    }
+}
+
+#[cfg(not(windows))]
+fn write_policy(_policy: &BrowserPolicy) -> Result<(), String> {
+    Err("该功能目前仅支持 Windows".into())
+}
+
+#[cfg(not(windows))]
+fn remove_policy(_policy: &BrowserPolicy) -> Result<(), String> {
+    Err("该功能目前仅支持 Windows".into())
+}
+
+#[cfg(not(windows))]
+fn read_policy(_policy: &BrowserPolicy) -> bool {
+    false
+}
+
+/// 打开 WebRTC 防泄漏（Chrome + Edge）
+#[tauri::command]
+pub fn enable_webrtc_control() -> CmdResult<()> {
+    write_policy(&CHROME_POLICY)?;
+    write_policy(&EDGE_POLICY)?;
+    Ok(())
+}
+
+/// 关闭 WebRTC 防泄漏（Chrome + Edge），恢复浏览器默认行为
+#[tauri::command]
+pub fn disable_webrtc_control() -> CmdResult<()> {
+    remove_policy(&CHROME_POLICY)?;
+    remove_policy(&EDGE_POLICY)?;
+    Ok(())
+}
+
+/// 查询当前是否已开启（两个浏览器都设置了才算开启，任一未设置视为关闭）
+#[tauri::command]
+pub fn check_webrtc_control_status() -> CmdResult<bool> {
+    Ok(read_policy(&CHROME_POLICY) && read_policy(&EDGE_POLICY))
+}
+===== src/components/setting/setting-verge-basic.tsx =====
+import { ContentCopyRounded } from '@mui/icons-material'
+import { Button, Input, MenuItem, Select } from '@mui/material'
+import { invoke } from '@tauri-apps/api/core'
+import { open } from '@tauri-apps/plugin-dialog'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { DialogRef, Switch, TooltipIcon } from '@/components/base'
+import { useVerge } from '@/hooks/use-verge'
+import { navItems } from '@/pages/_routers'
+import { copyClashEnv } from '@/services/cmds'
+import { supportedLanguages } from '@/services/i18n'
+import { showNotice } from '@/services/notice-service'
+import getSystem from '@/utils/get-system'
+import { BackupViewer } from './mods/backup-viewer'
+import { ConfigViewer } from './mods/config-viewer'
+import { GuardState } from './mods/guard-state'
+import { HotkeyViewer } from './mods/hotkey-viewer'
+import { LayoutViewer } from './mods/layout-viewer'
+import { MiscViewer } from './mods/misc-viewer'
+import { SettingItem, SettingList } from './mods/setting-comp'
+import { ThemeModeSwitch } from './mods/theme-mode-switch'
+import { UpdateViewer } from './mods/update-viewer'
+
+interface Props {
+  onError?: (err: Error) => void
+}
+
+const OS = getSystem()
+
+const languageOptions = supportedLanguages.map((code) => {
+  const labels: { [key: string]: string } = {
+    en: 'English',
+    ru: 'Русский',
+    zh: '中文',
+    fa: 'فارسی',
+    tt: 'Татар',
+    id: 'Bahasa Indonesia',
+    ar: 'العربية',
+    ko: '한국어',
+    tr: 'Türkçe',
+    de: 'Deutsch',
+    es: 'Español',
+    jp: '日本語',
+    zhtw: '繁體中文',
+  }
+  const label = labels[code] || code
+  return { code, label }
+})
+
+const SettingVergeBasic = ({ onError }: Props) => {
+  const { t } = useTranslation()
+  const { verge, patchVerge, mutateVerge } = useVerge()
+  const {
+    theme_mode,
+    language,
+    tray_event,
+    env_type,
+    startup_script,
+    start_page,
+  } = verge ?? {}
+
+  const configRef = useRef<DialogRef>(null)
+  const hotkeyRef = useRef<DialogRef>(null)
+  const miscRef = useRef<DialogRef>(null)
+  const layoutRef = useRef<DialogRef>(null)
+  const updateRef = useRef<DialogRef>(null)
+  const backupRef = useRef<DialogRef>(null)
+
+  // IPv6 的真实状态在系统注册表里，不在 verge 配置里，挂载时查一次
+  const [ipv6Block, setIpv6Block] = useState(false)
+  useEffect(() => {
+    invoke<boolean>('check_ipv6_block_status')
+      .then((status) => setIpv6Block(status))
+      .catch(() => {})
+  }, [])
+
+  const onChangeData = (patch: any) => {
+    mutateVerge({ ...verge, ...patch }, false)
+  }
+
+  const onCopyClashEnv = useCallback(async () => {
+    await copyClashEnv()
+    showNotice.success('shared.feedback.notifications.common.copySuccess', 1000)
+  }, [])
+
+  // ⚡ WebRTC/DNS 主开关：即拨即生效，且【不再联动 SMHNR】
+  const onWebrtc = (c: boolean) => {
+    onChangeData({ webrtc_leak_protection: c })
+    patchVerge({ webrtc_leak_protection: c })
+    // 解耦：这里只管 webrtc_control + doh_block，完全不碰 smhnr
+    void Promise.allSettled([
+      invoke(c ? 'enable_webrtc_control' : 'disable_webrtc_control'),
+      invoke(c ? 'enable_doh_block' : 'disable_doh_block'),
+    ]).then((results) => {
+      results.forEach((r) => {
+        if (r.status === 'rejected') {
+          const err = (r as PromiseRejectedResult).reason
+          showNotice.error(
+            typeof err === 'string'
+              ? err
+              : '设置 WebRTC/DNS 防泄漏失败，可能需要以管理员身份运行',
+          )
+        }
+      })
+    })
+  }
+
+  // ⚡ SMHNR 独立开关：即拨即生效，【不看 WebRTC 状态】，可单独打开
+  const onSmhnr = (c: boolean) => {
+    onChangeData({ smhnr_enabled: c })
+    patchVerge({ smhnr_enabled: c })
+    void invoke(
+      c ? 'enable_smhnr_protection' : 'disable_smhnr_protection',
+    ).catch((err) => {
+      showNotice.error(
+        typeof err === 'string'
+          ? err
+          : '设置 SMHNR 防泄漏失败，可能需要以管理员身份运行',
+      )
+    })
+  }
+
+  // ⚡ IPv6 独立开关：即拨即生效，失败回滚界面
+  const onIpv6 = (c: boolean) => {
+    setIpv6Block(c)
+    void invoke(c ? 'enable_ipv6_block' : 'disable_ipv6_block').catch((err) => {
+      setIpv6Block(!c)
+      showNotice.error(
+        typeof err === 'string'
+          ? err
+          : '设置 IPv6 防泄漏失败，可能需要以管理员身份运行',
+      )
+    })
+  }
+
+  return (
+    <SettingList title={t('settings.components.verge.basic.title')}>
+      <ConfigViewer ref={configRef} />
+      <HotkeyViewer ref={hotkeyRef} />
+      <MiscViewer ref={miscRef} />
+      <LayoutViewer ref={layoutRef} />
+      <UpdateViewer ref={updateRef} />
+      <BackupViewer ref={backupRef} />
+
+      <SettingItem label={t('settings.components.verge.basic.fields.language')}>
+        <GuardState
+          value={language ?? 'en'}
+          onCatch={onError}
+          onFormat={(e: any) => e.target.value}
+          onChange={(e) => onChangeData({ language: e })}
+          onGuard={(e) => patchVerge({ language: e })}
+        >
+          <Select size="small" sx={{ width: 110, '> div': { py: '7.5px' } }}>
+            {languageOptions.map(({ code, label }) => (
+              <MenuItem key={code} value={code}>
+                {label}
+              </MenuItem>
+            ))}
+          </Select>
+        </GuardState>
+      </SettingItem>
+
+      <SettingItem
+        label={t('settings.components.verge.basic.fields.themeMode')}
+      >
+        <GuardState
+          value={theme_mode}
+          onCatch={onError}
+          onChange={(e) => onChangeData({ theme_mode: e })}
+          onGuard={(e) => patchVerge({ theme_mode: e })}
+        >
+          <ThemeModeSwitch />
+        </GuardState>
+      </SettingItem>
+
+      {OS !== 'linux' && (
+        <SettingItem
+          label={t('settings.components.verge.basic.fields.trayClickEvent')}
+        >
+          <GuardState
+            value={tray_event ?? 'main_window'}
+            onCatch={onError}
+            onFormat={(e: any) => e.target.value}
+            onChange={(e) => onChangeData({ tray_event: e })}
+            onGuard={(e) => patchVerge({ tray_event: e })}
+          >
+            <Select size="small" sx={{ width: 140, '> div': { py: '7.5px' } }}>
+              <MenuItem value="main_window">
+                {t(
+                  'settings.components.verge.basic.trayOptions.showMainWindow',
+                )}
+              </MenuItem>
+              <MenuItem value="tray_menu">
+                {t('settings.components.verge.basic.trayOptions.showTrayMenu')}
+              </MenuItem>
+              <MenuItem value="system_proxy">
+                {t('settings.sections.system.toggles.systemProxy')}
+              </MenuItem>
+              <MenuItem value="tun_mode">
+                {t('settings.sections.system.toggles.tunMode')}
+              </MenuItem>
+              <MenuItem value="disable">
+                {t('settings.components.verge.basic.trayOptions.disable')}
+              </MenuItem>
+            </Select>
+          </GuardState>
+        </SettingItem>
+      )}
+
+      <SettingItem
+        label={t('settings.components.verge.basic.fields.copyEnvType')}
+        extra={
+          <TooltipIcon icon={ContentCopyRounded} onClick={onCopyClashEnv} />
+        }
+      >
+        <GuardState
+          value={env_type ?? (OS === 'windows' ? 'powershell' : 'bash')}
+          onCatch={onError}
+          onFormat={(e: any) => e.target.value}
+          onChange={(e) => onChangeData({ env_type: e })}
+          onGuard={(e) => patchVerge({ env_type: e })}
+        >
+          <Select size="small" sx={{ width: 140, '> div': { py: '7.5px' } }}>
+            <MenuItem value="bash">Bash</MenuItem>
+            <MenuItem value="fish">Fish</MenuItem>
+            <MenuItem value="nushell">Nushell</MenuItem>
+            <MenuItem value="cmd">CMD</MenuItem>
+            <MenuItem value="powershell">PowerShell</MenuItem>
+          </Select>
+        </GuardState>
+      </SettingItem>
+
+      <SettingItem
+        label={t('settings.components.verge.basic.fields.startPage')}
+      >
+        <GuardState
+          value={start_page ?? '/'}
+          onCatch={onError}
+          onFormat={(e: any) => e.target.value}
+          onChange={(e) => onChangeData({ start_page: e })}
+          onGuard={(e) => patchVerge({ start_page: e })}
+        >
+          <Select size="small" sx={{ width: 140, '> div': { py: '7.5px' } }}>
+            {navItems.map((page: { label: string; path: string }) => {
+              return (
+                <MenuItem key={page.path} value={page.path}>
+                  {t(page.label)}
+                </MenuItem>
+              )
+            })}
+          </Select>
+        </GuardState>
+      </SettingItem>
+
+      <SettingItem
+        label={t('settings.components.verge.basic.fields.startupScript')}
+      >
+        <GuardState
+          value={startup_script ?? ''}
+          onCatch={onError}
+          onFormat={(e: any) => e.target.value}
+          onChange={(e) => onChangeData({ startup_script: e })}
+          onGuard={(e) => patchVerge({ startup_script: e })}
+        >
+          <Input
+            value={startup_script}
+            disabled
+            disableUnderline
+            sx={{ width: 230 }}
+            endAdornment={
+              <>
+                <Button
+                  onClick={async () => {
+                    const selected = await open({
+                      directory: false,
+                      multiple: false,
+                      filters: [
+                        {
+                          name: 'Shell Script',
+                          extensions: ['sh', 'bat', 'ps1'],
+                        },
+                      ],
+                    })
+                    if (selected) {
+                      onChangeData({ startup_script: `${selected}` })
+                      patchVerge({ startup_script: `${selected}` })
+                    }
+                  }}
+                >
+                  {t('settings.components.verge.basic.actions.browse')}
+                </Button>
+                {startup_script && (
+                  <Button
+                    onClick={async () => {
+                      onChangeData({ startup_script: '' })
+                      patchVerge({ startup_script: '' })
+                    }}
+                  >
+                    {t('shared.actions.clear')}
+                  </Button>
+                )}
+              </>
+            }
+          ></Input>
+        </GuardState>
+      </SettingItem>
+
+      <SettingItem
+        onClick={() => layoutRef.current?.open()}
+        label={t('settings.components.verge.basic.fields.layoutSetting')}
+      />
+      <SettingItem
+        onClick={() => miscRef.current?.open()}
+        label={t('settings.components.verge.basic.fields.misc')}
+      />
+      <SettingItem
+        onClick={() => hotkeyRef.current?.open()}
+        label={t('settings.components.verge.basic.fields.hotkeySetting')}
+      />
+
+      {/* ===== 三个防泄漏开关：互相独立、即拨即生效 ===== */}
+      <SettingItem
+        label={t('settings.modals.misc.fields.webrtcLeakProtection')}
+        extra={
+          <TooltipIcon
+            title={t('settings.modals.misc.tooltips.webrtcLeakProtection')}
+            sx={{ opacity: '0.7' }}
+          />
+        }
+      >
+        <Switch
+          edge="end"
+          checked={verge?.webrtc_leak_protection ?? false}
+          onChange={(_, c) => onWebrtc(c)}
+        />
+      </SettingItem>
+
+      {/* SMHNR：解耦后无 disabled、checked 只读自身，可单独打开 */}
+      <SettingItem
+        label={t('settings.modals.misc.fields.smhnrEnabled')}
+        extra={
+          <TooltipIcon
+            title={t('settings.modals.misc.tooltips.smhnrEnabled')}
+            sx={{ opacity: '0.7' }}
+          />
+        }
+      >
+        <Switch
+          edge="end"
+          checked={verge?.smhnr_enabled ?? false}
+          onChange={(_, c) => onSmhnr(c)}
+        />
+      </SettingItem>
+
+      <SettingItem
+        label={t('settings.modals.misc.fields.ipv6Block')}
+        extra={
+          <TooltipIcon
+            title={t('settings.modals.misc.tooltips.ipv6Block')}
+            sx={{ opacity: '0.7' }}
+          />
+        }
+      >
+        <Switch
+          edge="end"
+          checked={ipv6Block}
+          onChange={(_, c) => onIpv6(c)}
+        />
+      </SettingItem>
+    </SettingList>
+  )
+}
+
+export default SettingVergeBasic===== src/components/setting/mods/misc-viewer.tsx =====
+import {
+  InputAdornment,
+  List,
+  ListItem,
+  ListItemText,
+  MenuItem,
+  Select,
+  TextField,
+} from '@mui/material'
+import { useLockFn } from 'ahooks'
+import { forwardRef, useImperativeHandle, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { BaseDialog, DialogRef, Switch, TooltipIcon } from '@/components/base'
+import { useVerge } from '@/hooks/use-verge'
+import { showNotice } from '@/services/notice-service'
+
+export const MiscViewer = forwardRef<DialogRef>((props, ref) => {
+  const { t } = useTranslation()
+  const { verge, patchVerge } = useVerge()
+  const [open, setOpen] = useState(false)
+  const [values, setValues] = useState({
+    appLogLevel: 'warn',
+    appLogMaxSize: 8,
+    appLogMaxCount: 12,
+    autoCloseConnection: true,
+    autoCheckUpdate: true,
+    enableBuiltinEnhanced: true,
+    proxyLayoutColumn: 6,
+    enableAutoDelayDetection: false,
+    autoDelayDetectionIntervalMinutes: 5,
+    defaultLatencyTest: '',
+    autoLogClean: 2,
+    defaultLatencyTimeout: 10000,
+  })
+
+  useImperativeHandle(ref, () => ({
+    open: () => {
+      setOpen(true)
+      setValues({
+        appLogLevel: verge?.app_log_level ?? 'warn',
+        appLogMaxSize: verge?.app_log_max_size ?? 128,
+        appLogMaxCount: verge?.app_log_max_count ?? 8,
+        autoCloseConnection: verge?.auto_close_connection ?? true,
+        autoCheckUpdate: verge?.auto_check_update ?? true,
+        enableBuiltinEnhanced: verge?.enable_builtin_enhanced ?? true,
+        proxyLayoutColumn: verge?.proxy_layout_column || 6,
+        enableAutoDelayDetection: verge?.enable_auto_delay_detection ?? false,
+        autoDelayDetectionIntervalMinutes:
+          verge?.auto_delay_detection_interval_minutes ?? 5,
+        defaultLatencyTest: verge?.default_latency_test || '',
+        autoLogClean: verge?.auto_log_clean || 0,
+        defaultLatencyTimeout: verge?.default_latency_timeout || 10000,
+      })
+    },
+    close: () => setOpen(false),
+  }))
+
+  const onSave = useLockFn(async () => {
+    try {
+      await patchVerge({
+        app_log_level: values.appLogLevel,
+        app_log_max_size: values.appLogMaxSize,
+        app_log_max_count: values.appLogMaxCount,
+        auto_close_connection: values.autoCloseConnection,
+        auto_check_update: values.autoCheckUpdate,
+        enable_builtin_enhanced: values.enableBuiltinEnhanced,
+        proxy_layout_column: values.proxyLayoutColumn,
+        enable_auto_delay_detection: values.enableAutoDelayDetection,
+        auto_delay_detection_interval_minutes:
+          values.autoDelayDetectionIntervalMinutes,
+        default_latency_test: values.defaultLatencyTest,
+        default_latency_timeout: values.defaultLatencyTimeout,
+        auto_log_clean: values.autoLogClean as any,
+      })
+      setOpen(false)
+    } catch (err) {
+      showNotice.error(err)
+    }
+  })
+
+  return (
+    <BaseDialog
+      open={open}
+      title={t('settings.modals.misc.title')}
+      contentSx={{ width: 450 }}
+      okBtn={t('shared.actions.save')}
+      cancelBtn={t('shared.actions.cancel')}
+      onClose={() => setOpen(false)}
+      onCancel={() => setOpen(false)}
+      onOk={onSave}
+    >
+      <List>
+        <ListItem sx={{ padding: '5px 2px' }}>
+          <ListItemText
+            primary={t('settings.modals.misc.fields.appLogLevel')}
+          />
+          <Select
+            size="small"
+            sx={{ width: 100, '> div': { py: '7.5px' } }}
+            value={values.appLogLevel}
+            onChange={(e) =>
+              setValues((v) => ({
+                ...v,
+                appLogLevel: e.target.value as string,
+              }))
+            }
+          >
+            {['trace', 'debug', 'info', 'warn', 'error', 'silent'].map((i) => (
+              <MenuItem value={i} key={i}>
+                {i[0].toUpperCase() + i.slice(1).toLowerCase()}
+              </MenuItem>
+            ))}
+          </Select>
+        </ListItem>
+
+        <ListItem sx={{ padding: '5px 2px' }}>
+          <ListItemText
+            primary={t('settings.modals.misc.fields.appLogMaxSize')}
+            sx={{ maxWidth: 'fit-content' }}
+          />
+          <TextField
+            autoComplete="new-password"
+            size="small"
+            type="number"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck="false"
+            sx={{ width: 140, marginLeft: 'auto' }}
+            value={values.appLogMaxSize}
+            onChange={(e) =>
+              setValues((v) => ({
+                ...v,
+                appLogMaxSize: Math.max(1, parseInt(e.target.value) || 128),
+              }))
+            }
+            slotProps={{
+              input: {
+                endAdornment: (
+                  <InputAdornment position="end">
+                    {t('shared.units.kilobytes')}
+                  </InputAdornment>
+                ),
+              },
+            }}
+          />
+        </ListItem>
+
+        <ListItem sx={{ padding: '5px 2px' }}>
+          <ListItemText
+            primary={t('settings.modals.misc.fields.appLogMaxCount')}
+            sx={{ maxWidth: 'fit-content' }}
+          />
+          <TextField
+            autoComplete="new-password"
+            size="small"
+            type="number"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck="false"
+            sx={{ width: 140, marginLeft: 'auto' }}
+            value={values.appLogMaxCount}
+            onChange={(e) =>
+              setValues((v) => ({
+                ...v,
+                appLogMaxCount: Math.max(1, parseInt(e.target.value) || 1),
+              }))
+            }
+            slotProps={{
+              input: {
+                endAdornment: (
+                  <InputAdornment position="end">
+                    {t('shared.units.files')}
+                  </InputAdornment>
+                ),
+              },
+            }}
+          />
+        </ListItem>
+
+        <ListItem sx={{ padding: '5px 2px' }}>
+          <ListItemText
+            primary={t('settings.modals.misc.fields.autoCloseConnections')}
+            sx={{ maxWidth: 'fit-content' }}
+          />
+          <TooltipIcon
+            title={t('settings.modals.misc.tooltips.autoCloseConnections')}
+            sx={{ opacity: '0.7' }}
+          />
+          <Switch
+            edge="end"
+            checked={values.autoCloseConnection}
+            onChange={(_, c) =>
+              setValues((v) => ({ ...v, autoCloseConnection: c }))
+            }
+            sx={{ marginLeft: 'auto' }}
+          />
+        </ListItem>
+
+        <ListItem sx={{ padding: '5px 2px' }}>
+          <ListItemText
+            primary={t('settings.modals.misc.fields.autoCheckUpdate')}
+          />
+          <Switch
+            edge="end"
+            checked={values.autoCheckUpdate}
+            onChange={(_, c) =>
+              setValues((v) => ({ ...v, autoCheckUpdate: c }))
+            }
+          />
+        </ListItem>
+
+        <ListItem sx={{ padding: '5px 2px' }}>
+          <ListItemText
+            primary={t('settings.modals.misc.fields.enableBuiltinEnhanced')}
+            sx={{ maxWidth: 'fit-content' }}
+          />
+          <TooltipIcon
+            title={t('settings.modals.misc.tooltips.enableBuiltinEnhanced')}
+            sx={{ opacity: '0.7' }}
+          />
+          <Switch
+            edge="end"
+            checked={values.enableBuiltinEnhanced}
+            onChange={(_, c) =>
+              setValues((v) => ({ ...v, enableBuiltinEnhanced: c }))
+            }
+            sx={{ marginLeft: 'auto' }}
+          />
+        </ListItem>
+
+        <ListItem sx={{ padding: '5px 2px' }}>
+          <ListItemText
+            primary={t('settings.modals.misc.fields.proxyLayoutColumns')}
+          />
+          <Select
+            size="small"
+            sx={{ width: 160, '> div': { py: '7.5px' } }}
+            value={values.proxyLayoutColumn}
+            onChange={(e) =>
+              setValues((v) => ({
+                ...v,
+                proxyLayoutColumn: e.target.value as number,
+              }))
+            }
+          >
+            <MenuItem value={6} key={6}>
+              {t('settings.modals.misc.options.proxyLayoutColumns.auto')}
+            </MenuItem>
+            {[1, 2, 3, 4, 5].map((i) => (
+              <MenuItem value={i} key={i}>
+                {i}
+              </MenuItem>
+            ))}
+          </Select>
+        </ListItem>
+
+        <ListItem sx={{ padding: '5px 2px' }}>
+          <ListItemText
+            primary={t('settings.modals.misc.fields.autoLogClean')}
+          />
+          <Select
+            size="small"
+            sx={{ width: 160, '> div': { py: '7.5px' } }}
+            value={values.autoLogClean}
+            onChange={(e) =>
+              setValues((v) => ({
+                ...v,
+                autoLogClean: e.target.value as number,
+              }))
+            }
+          >
+            {[
+              {
+                key: t('settings.modals.misc.options.autoLogClean.never'),
+                value: 0,
+              },
+              {
+                key: t('settings.modals.misc.options.autoLogClean.retainDays', {
+                  n: 1,
+                }),
+                value: 1,
+              },
+              {
+                key: t('settings.modals.misc.options.autoLogClean.retainDays', {
+                  n: 7,
+                }),
+                value: 2,
+              },
+              {
+                key: t('settings.modals.misc.options.autoLogClean.retainDays', {
+                  n: 30,
+                }),
+                value: 3,
+              },
+              {
+                key: t('settings.modals.misc.options.autoLogClean.retainDays', {
+                  n: 90,
+                }),
+                value: 4,
+              },
+            ].map((i) => (
+              <MenuItem key={i.value} value={i.value}>
+                {i.key}
+              </MenuItem>
+            ))}
+          </Select>
+        </ListItem>
+
+        <ListItem sx={{ padding: '5px 2px' }}>
+          <ListItemText
+            primary={t('settings.modals.misc.fields.autoDelayDetection')}
+            sx={{ maxWidth: 'fit-content' }}
+          />
+          <TooltipIcon
+            title={t('settings.modals.misc.tooltips.autoDelayDetection')}
+            sx={{ opacity: '0.7' }}
+          />
+          <Switch
+            edge="end"
+            checked={values.enableAutoDelayDetection}
+            onChange={(_, c) =>
+              setValues((v) => ({ ...v, enableAutoDelayDetection: c }))
+            }
+            sx={{ marginLeft: 'auto' }}
+          />
+        </ListItem>
+
+        <ListItem sx={{ padding: '5px 2px' }}>
+          <ListItemText
+            primary={t(
+              'settings.modals.misc.fields.autoDelayDetectionInterval',
+            )}
+            sx={{ maxWidth: 'fit-content' }}
+          />
+          <TextField
+            autoComplete="new-password"
+            size="small"
+            type="number"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck="false"
+            sx={{ width: 160, marginLeft: 'auto' }}
+            value={values.autoDelayDetectionIntervalMinutes}
+            disabled={!values.enableAutoDelayDetection}
+            onChange={(e) => {
+              const parsed = parseInt(e.target.value, 10)
+              const intervalMinutes =
+                Number.isFinite(parsed) && parsed > 0 ? parsed : 1
+              setValues((v) => ({
+                ...v,
+                autoDelayDetectionIntervalMinutes: intervalMinutes,
+              }))
+            }}
+            slotProps={{
+              input: {
+                endAdornment: (
+                  <InputAdornment position="end">
+                    {t('shared.units.minutes')}
+                  </InputAdornment>
+                ),
+              },
+            }}
+          />
+        </ListItem>
+
+        <ListItem sx={{ padding: '5px 2px' }}>
+          <ListItemText
+            primary={t('settings.modals.misc.fields.defaultLatencyTest')}
+            sx={{ maxWidth: 'fit-content' }}
+          />
+          <TooltipIcon
+            title={t('settings.modals.misc.tooltips.defaultLatencyTest')}
+            sx={{ opacity: '0.7' }}
+          />
+          <TextField
+            autoComplete="new-password"
+            size="small"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck="false"
+            sx={{ width: 250, marginLeft: 'auto' }}
+            value={values.defaultLatencyTest}
+            placeholder="http://cp.cloudflare.com/generate_204"
+            onChange={(e) =>
+              setValues((v) => ({ ...v, defaultLatencyTest: e.target.value }))
+            }
+          />
+        </ListItem>
+
+        <ListItem sx={{ padding: '5px 2px' }}>
+          <ListItemText
+            primary={t('settings.modals.misc.fields.defaultLatencyTimeout')}
+          />
+          <TextField
+            autoComplete="new-password"
+            size="small"
+            type="number"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck="false"
+            sx={{ width: 250 }}
+            value={values.defaultLatencyTimeout}
+            placeholder="10000"
+            onChange={(e) =>
+              setValues((v) => ({
+                ...v,
+                defaultLatencyTimeout: parseInt(e.target.value),
+              }))
+            }
+            slotProps={{
+              input: {
+                endAdornment: (
+                  <InputAdornment position="end">
+                    {t('shared.units.milliseconds')}
+                  </InputAdornment>
+                ),
+              },
+            }}
+          />
+        </ListItem>
+      </List>
+    </BaseDialog>
+  )
+})

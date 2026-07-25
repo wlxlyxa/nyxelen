@@ -129,6 +129,7 @@ pub async fn create_profile(item: PrfItem, file_data: Option<String>) -> CmdResu
     match profiles_append_item_with_filedata_safe(&item, file_data).await {
         Ok(_) => {
             profiles_save_file_safe().await.stringify_err()?;
+            Config::profiles().await.apply();
             // 发送配置变更通知
             if let Some(uid) = &item.uid {
                 logging!(info, Type::Cmd, "[创建订阅] 发送配置变更通知: {}", uid);

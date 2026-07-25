@@ -1,6 +1,7 @@
 pub mod autostart;
 pub mod backup;
 pub mod firewall_allow;
+pub mod privacy_ops;
 pub mod handle;
 pub mod hotkey;
 pub mod logger;

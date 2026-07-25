@@ -2,7 +2,7 @@
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "identifier": "io.github.wlxlyxa.wangzai",
   "bundle": {
-    "targets": ["nsis", "msi"],
+    "targets": ["nsis"],
     "windows": {
       "certificateThumbprint": null,
       "digestAlgorithm": "sha256",

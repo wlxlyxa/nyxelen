@@ -20,7 +20,7 @@ import {
   RefreshRounded,
   TextSnippetOutlined,
 } from '@mui/icons-material'
-import { Box, Button, Grid, IconButton, Stack } from '@mui/material'
+import { Box, Button, Grid, IconButton, MenuItem, Stack, TextField, Typography } from '@mui/material'
 import { TauriEvent } from '@tauri-apps/api/event'
 import { readText } from '@tauri-apps/plugin-clipboard-manager'
 import { readTextFile } from '@tauri-apps/plugin-fs'
@@ -115,6 +115,8 @@ const ProfilePage = () => {
   const location = useLocation()
   const { addListener } = useListen()
   const [url, setUrl] = useState('')
+  const [manualOpen, setManualOpen] = useState(false)
+  const [manual, setManual] = useState({ proto: 'socks5', host: '', port: '', user: '', pass: '', remark: '' })
   const [disabled, setDisabled] = useState(false)
   const [activatings, setActivatings] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
@@ -286,6 +288,7 @@ const ProfilePage = () => {
 
   const onSmartImport = async function () {
     const raw = url.trim()
+    let items: any[] = []
     if (!raw) return
     setLoading(true)
     setDisabled(true)
@@ -305,7 +308,7 @@ const ProfilePage = () => {
     if (parsed) {
       if (parsed.count > 0) {
         const oldUids = new Set()
-        let arr = []
+        let arr: any[] = []
         if (profiles.items) arr = profiles.items
         for (let i = 0; i < arr.length; i++) {
           if (arr[i]) {
@@ -321,11 +324,10 @@ const ProfilePage = () => {
           name: parsed.name,
           desc: parsed.desc,
           url: urlVal,
+          option: { with_proxy: false, self_proxy: false },
         } as IProfileItem
         await createProfile(item, parsed.yaml)
         await mutateProfiles()
-        await enhanceProfiles()
-        let items = []
         const latest = await getProfiles()
         if (latest) {
           if (latest.items) items = latest.items
@@ -346,17 +348,10 @@ const ProfilePage = () => {
           }
         }
         if (ni) {
-          if (ni.uid) {
-            try {
-              await onSelect(ni.uid, true)
-            } catch (e) {
-              console.warn('[smart-import] activate fail:', e)
-            }
-          }
+          showNotice.info('已导入，请点击右上角黄色火焰新完成激活', 4000)
         }
         setUrl('')
-        let tail = '，请手动点选激活'
-        if (ni) tail = '，已自动激活'
+             let tail = '，请点击右上角黄色火焰激活节点'
         showNotice.success('已导入 ' + parsed.count + ' 个节点' + tail)
         setDisabled(false)
         setLoading(false)
@@ -383,6 +378,91 @@ const ProfilePage = () => {
     setDisabled(false)
     setLoading(false)
   }
+
+const onSmartImportSafe = async function () {
+  try {
+    await onSmartImport()
+  } catch (e) {
+    console.warn('[smart-import] top-level error:', e)
+    let m = '' + e
+    if (m.indexOf('object Object') > -1) m = '导入失败，请按F12看控制台'
+    showNotice.error(m)
+  } finally {
+    setDisabled(false)
+    setLoading(false)
+  }
+}
+  
+const onAddManual = async function () {
+  const host = manual.host.trim()
+  const port = manual.port.trim()
+  if (!host) {
+    showNotice.error('请填写服务器')
+    return
+  }
+  if (!port) {
+    showNotice.error('请填写端口')
+    return
+  }
+  let allDigit = true
+  for (let i = 0; i < port.length; i++) {
+    const c = port.charAt(i)
+    if (c < '0' || c > '9') allDigit = false
+  }
+  if (!allDigit) {
+    showNotice.error('端口需为数字')
+    return
+  }
+  const portNum = Number(port)
+  if (portNum < 1 || portNum > 65535) {
+    showNotice.error('端口需在 1 到 65535 之间')
+    return
+  }
+  const user = manual.user.trim()
+  const pass = manual.pass.trim()
+  const hasUser = user.length > 0
+  const hasPass = pass.length > 0
+  if (hasUser !== hasPass) {
+    showNotice.error('账号和密码请同时填写，或同时留空')
+    return
+  }
+  let h = host
+  if (h.indexOf(':') > -1 && !h.startsWith('[')) h = '[' + h + ']'
+  let auth = ''
+  if (hasUser) auth = encodeURIComponent(user) + ':' + encodeURIComponent(pass) + '@'
+  const remark = manual.remark.trim()
+  let frag = ''
+  if (remark) frag = '#' + encodeURIComponent(remark)
+  const uri = manual.proto + '://' + auth + h + ':' + port + frag
+  let proxy = null
+  try {
+    proxy = importText(uri)
+  } catch (e) {
+    console.warn('[manual] parse fail:', e)
+  }
+  if (!proxy) {
+    showNotice.error('解析失败，请检查填写内容')
+    return
+  }
+  const item = {
+    type: 'local',
+    name: '手动 ' + manual.proto.toUpperCase() + ' ' + host + ':' + port,
+    desc: '手动添加 ' + manual.proto,
+    url: '',
+  } as IProfileItem
+  try {
+    await createProfile(item, proxy.yaml)
+    await mutateProfiles()
+    await enhanceProfiles()
+    showNotice.success('已添加 ' + proxy.count + ' 个节点，请点下方新卡片激活')
+    setManual({ proto: manual.proto, host: '', port: '', user: '', pass: '', remark: '' })
+    setManualOpen(false)
+  } catch (err) {
+    let m = '' + err
+    if (m.indexOf('object Object') > -1) m = '添加失败'
+    showNotice.error(m)
+  }
+}
 
   const onImport = async () => {
     if (!url) return
@@ -984,7 +1064,7 @@ const ProfilePage = () => {
               return
             }
             event.preventDefault()
-            void onSmartImport()
+            void onSmartImportSafe()
           }}
           placeholder={t('profiles.page.importForm.placeholder')}
           slotProps={{
@@ -1018,7 +1098,7 @@ const ProfilePage = () => {
           variant="contained"
           size="small"
           sx={{ borderRadius: '6px' }}
-          onClick={onSmartImport}
+          onClick={onSmartImportSafe}
         >
           {t('profiles.page.actions.import')}
         </Button>
@@ -1045,6 +1125,107 @@ const ProfilePage = () => {
             overflowY: 'auto',
           }}
         >
+                 <Box
+         sx={{
+           mb: 1.5,
+           border: '1px dashed',
+           borderColor: 'warning.main',
+           borderRadius: 2,
+           p: 1.5,
+           bgcolor: 'rgba(255,165,0,0.07)',
+         }}
+       >
+         <Box
+           sx={{ display: 'flex', alignItems: 'center', gap: 1, cursor: 'pointer' }}
+           onClick={() => setManualOpen(!manualOpen)}
+         >
+           <Typography sx={{ fontWeight: 700, color: 'warning.main', fontSize: 14 }}>
+  本软件支持任何协议导入，直接复制粘贴点击导入即可！由于内置防泄漏模块，会有10几秒加载时间，请耐心等待加载完成后使用！如有导入没有激活的情况，请自行点击右上角黄色火焰激活即可。
+  <br />
+  <Box
+    component="span"
+    sx={{
+      display: 'block',
+      textAlign: 'center',
+      color: '#ff5252',          // ← 唯一新增：从这一层起，红，且只红这一行
+    }}
+  >
+    如果您是 SOCKS5 / HTTP(S) 代理，请点此手动添加（IP + 端口 + 账号 + 密码）
+  </Box>
+</Typography>
+           <Typography sx={{ ml: 'auto', fontSize: 14, opacity: 0.7 }}>
+             {manualOpen ? '收起' : '展开'}
+           </Typography>
+         </Box>
+         <Typography sx={{ fontSize: 12, opacity: 0.7, mt: 0.5 }}>
+           <Box component="span" sx={{ display: 'block', textAlign: 'center' }}>
+           也可在上方输入框直接粘贴完整链接，如 socks5://账号:密码@IP:端口 或 http://IP:端口:账号:密码。
+           </Box>
+         </Typography>
+         {manualOpen && (
+           <Box
+             sx={{
+               mt: 1.5,
+               display: 'grid',
+               gridTemplateColumns: '1fr 1fr',
+               gap: 1,
+             }}
+           >
+             <TextField
+               size="small"
+               select
+               label="协议"
+               value={manual.proto}
+               onChange={(e) => setManual({ ...manual, proto: e.target.value })}
+             >
+               <MenuItem value="socks5">SOCKS5</MenuItem>
+               <MenuItem value="http">HTTP</MenuItem>
+               <MenuItem value="https">HTTPS</MenuItem>
+             </TextField>
+             <TextField
+               size="small"
+               label="备注名（可选）"
+               value={manual.remark}
+               onChange={(e) => setManual({ ...manual, remark: e.target.value })}
+             />
+             <TextField
+               size="small"
+               label="服务器 IP / 域名"
+               value={manual.host}
+               onChange={(e) => setManual({ ...manual, host: e.target.value })}
+               placeholder="1.2.3.4"
+             />
+             <TextField
+               size="small"
+               label="端口"
+               value={manual.port}
+               onChange={(e) => setManual({ ...manual, port: e.target.value })}
+               placeholder="1080"
+             />
+             <TextField
+               size="small"
+               label="账号（可选）"
+               value={manual.user}
+               onChange={(e) => setManual({ ...manual, user: e.target.value })}
+             />
+             <TextField
+               size="small"
+               label="密码（可选）"
+               type="password"
+               value={manual.pass}
+               onChange={(e) => setManual({ ...manual, pass: e.target.value })}
+             />
+             <Box component="span" sx={{ display: 'block', textAlign: 'center' }}>
+    如果您在使用本软件中遇到任何难以解决的问题，也可联系我们付费指导。<br />微信：jtysip<br />QQ：6194959
+  </Box>
+             <Box sx={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'flex-end' }}>
+               <Button variant="contained" size="small" onClick={onAddManual}>
+                 添加
+               </Button>
+             </Box>
+           </Box>
+         )}
+       </Box>
           <Box sx={{ mb: 1.5 }}>
             <Grid container spacing={{ xs: 1, lg: 1 }}>
               <SortableContext

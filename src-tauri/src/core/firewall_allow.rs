@@ -133,6 +133,63 @@ pub fn allow_tun_interface() {
 pub fn cleanup_rules() {
     remove_rule(CORE_RULE_NAME);
     remove_rule(TUN_RULE_NAME);
+    remove_rule(PHYS_LOCK_BLOCK);
+    remove_rule(PHYS_LOCK_ALLOW_PROXY);
+    remove_rule(PHYS_LOCK_ALLOW_LAN);
     CURRENT_CORE_PID.store(0, Ordering::Release);
     clash_verge_logging::logging!(info, clash_verge_logging::Type::Core, "已清理望仔防火墙放行规则");
+}
+
+// =====================================================================
+// 物理网卡出站锁 —— 仅"只读 / 只删"安全件
+// ---------------------------------------------------------------------
+// 重要：经核对 Windows 防火墙语义（Block 规则优先于 Allow 规则），
+// 用 netsh / New-NetFirewallRule 无法安全实现"物理网卡 block-all 而不断代理"
+// （block-all 会连代理出站一起 block，allow_core_process 也救不了）。
+// 因此本模块【故意不提供 enable】，只提供列网卡 / 查状态 / 解除，
+// 全部为只读或只删操作，绝不会造成断网。
+// 真正的物理锁需走 WFP sublayer 权重方案，列为后续专项。
+// =====================================================================
+const PHYS_LOCK_BLOCK: &str = "望仔-物理锁-block";
+const PHYS_LOCK_ALLOW_PROXY: &str = "望仔-物理锁-allow-proxy";
+const PHYS_LOCK_ALLOW_LAN: &str = "望仔-物理锁-allow-lan";
+
+/// 列出当前在线的物理网卡名（只读，安全）。供将来 WFP 方案的下拉选择。
+#[cfg(windows)]
+pub fn list_physical_nics() -> Vec<String> {
+    let script = "Get-NetAdapter -Physical | Where-Object { $_.Status -eq 'Up' } | Select-Object -ExpandProperty Name";
+    match run_powershell(script) {
+        Ok(out) => out
+            .lines()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect(),
+        Err(_) => Vec::new(),
+    }
+}
+
+#[cfg(not(windows))]
+pub fn list_physical_nics() -> Vec<String> {
+    Vec::new()
+}
+
+/// 查询是否残留物理锁规则（只读，安全）。
+#[cfg(windows)]
+pub fn check_physical_nic_lock_status() -> bool {
+    let script = format!(
+        "(Get-NetFirewallRule -DisplayName '{PHYS_LOCK_BLOCK}' -ErrorAction SilentlyContinue | Measure-Object).Count"
+    );
+    matches!(run_powershell(&script), Ok(v) if v.trim().parse::<i64>().unwrap_or(0) > 0)
+}
+
+#[cfg(not(windows))]
+pub fn check_physical_nic_lock_status() -> bool {
+    false
+}
+
+/// 删除物理锁规则（只删，幂等，安全）。没启用过也不报错。
+pub fn disable_physical_nic_lock() {
+    remove_rule(PHYS_LOCK_BLOCK);
+    remove_rule(PHYS_LOCK_ALLOW_PROXY);
+    remove_rule(PHYS_LOCK_ALLOW_LAN);
 }

@@ -266,6 +266,18 @@ pub struct IVerge {
 
     /// 全局禁用 IPv6
     pub ipv6_block: Option<bool>,
+        /// NCSI 联网探测直连阻断
+    pub ncsi_protection: Option<bool>,
+    /// QUIC / HTTP3 直连阻断
+    pub quic_protection: Option<bool>,
+    /// WPAD 自动代理发现关闭
+    pub wpad_protection: Option<bool>,
+    /// 在线证书检查（根证书自动更新）关闭
+    pub ocsp_protection: Option<bool>,
+    /// LLMNR / mDNS 局域网名称解析防护
+    pub llmnr_protection: Option<bool>,
+    /// DNS 缓存防护
+    pub dns_cache_guard: Option<bool>,
 }
 
 #[derive(Default, Debug, Clone, Deserialize, Serialize)]
@@ -535,6 +547,12 @@ impl IVerge {
         patch!(webrtc_leak_protection);
         patch!(ipv6_block);
         patch!(smhnr_enabled);
+        patch!(ncsi_protection);
+        patch!(quic_protection);
+        patch!(wpad_protection);
+        patch!(ocsp_protection);
+        patch!(llmnr_protection);
+        patch!(dns_cache_guard);
         patch!(enable_global_hotkey);
         patch!(clash_core);
         patch!(hotkeys);

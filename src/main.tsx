@@ -8,9 +8,9 @@ import { createRoot } from 'react-dom/client'
 import { RouterProvider } from 'react-router'
 import { SWRConfig } from 'swr'
 import { MihomoWebSocket } from 'tauri-plugin-mihomo-api'
-
 import { BaseErrorBoundary } from './components/base'
 import { router } from './pages/_routers'
+import UpdateGate from '@/components/updater/update-gate'
 import { AppDataProvider } from './providers/app-data-provider'
 import { WindowProvider } from './providers/window'
 import { FALLBACK_LANGUAGE, initializeLanguage } from './services/i18n'
@@ -57,8 +57,11 @@ const initializeApp = (initialThemeMode: 'light' | 'dark') => {
         <BaseErrorBoundary>
           <SWRConfig value={swrConfig}>
             <WindowProvider>
-                <AppDataProvider>
-                  <RouterProvider router={router} />
+                  <AppDataProvider>
+                  <>
+                    <UpdateGate />
+                    <RouterProvider router={router} />
+                  </>
                 </AppDataProvider>
             </WindowProvider>
           </SWRConfig>
