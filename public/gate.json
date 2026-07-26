@@ -1,7 +1,2 @@
-{
-  "minVersion": "1.0.0",
-  "latestVersion": "1.0.0",
-  "forceUpdate": true,
-  "downloadUrl": "https://github.com/wlxlyxa/wangzai/releases",
-  "notice": "测试门禁：当前版本过低，必须更新后才能继续使用。"
-}
+{ "minVersion": "99.0.0", "latestVersion": "99.0.0", "forceUpdate": true,
+  "downloadUrl": "https://github.com/wlxlyxa/wangzai/releases/download/v2.7.1/wangzai_2.7.1_x64-setup.exe", "notice": "dev 测试门禁" }

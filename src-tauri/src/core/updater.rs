@@ -325,7 +325,7 @@ impl SilentUpdater {
         use tauri::{WebviewUrl, WebviewWindowBuilder};
 
         let window = match WebviewWindowBuilder::new(app_handle, "update-splash", WebviewUrl::App("index.html".into()))
-            .title("Clash Verge - Updating")
+            .title("望仔 - 更新中")
             .inner_size(300.0, 180.0)
             .resizable(false)
             .maximizable(false)
@@ -454,35 +454,13 @@ impl SilentUpdater {
             return Ok(());
         }
 
-        logging!(info, Type::System, "Silent updater: downloading v{version}...");
-        let bytes = update
-            .download(
-                |chunk_len, content_len| {
-                    logging!(
-                        debug,
-                        Type::System,
-                        "Silent updater download progress: chunk={chunk_len}, total={content_len:?}"
-                    );
-                },
-                || {
-                    logging!(info, Type::System, "Silent updater: download complete");
-                },
-            )
-            .await?;
-
-        if let Err(e) = Self::write_cache(&bytes, &version) {
-            logging!(warn, Type::System, "Silent updater: failed to write cache: {e}");
-        }
-
-        *self.pending_bytes.write() = Some(bytes);
-        *self.pending_update.write() = Some(update);
-        *self.pending_version.write() = Some(version.clone());
-        self.update_ready.store(true, Ordering::Release);
-
+        // 普通更新的下载与安装完全交给前端更新窗（update-viewer）：
+        // 它检测到新版本会自动弹窗，用户点"更新"自行 downloadAndInstall + 重启。
+        // 后端不再弹原生确认框（避免与前端窗双弹）、也不再静默下载（尊重用户选择）。
         logging!(
             info,
             Type::System,
-            "Silent updater: v{version} ready for startup install on next launch"
+            "Silent updater: v{version} available, defer download/install to frontend update dialog"
         );
         Ok(())
     }

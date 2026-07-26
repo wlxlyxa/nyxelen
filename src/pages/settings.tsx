@@ -37,12 +37,12 @@ const SettingPage = () => {
             <SettingVergeUi onError={onError} />
           </Box>
         </Grid>
-        {/* 右栏：专项防泄漏 + 隐私套件 */}
+        {/* 右栏：专项防泄漏 + 隐私套件 + 提权急救（①②之间要有缝，故 privacy-suite 用 cardSx()） */}
         <Grid size={6}>
           <Box sx={cardSx()}>
             <SettingVergeBasic />
           </Box>
-          <Box sx={cardSx(false)}>
+          <Box sx={cardSx()}>
             <SettingPrivacySuite />
           </Box>
           <Box

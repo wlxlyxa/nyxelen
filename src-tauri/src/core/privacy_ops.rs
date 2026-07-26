@@ -28,9 +28,7 @@ fn run_ps(_script: &str) -> Result<String, String> {
 // ===== #04 Teredo / 6to4 / ISATAP 隧道禁用 =====
 #[cfg(windows)]
 pub fn enable_teredo_protection() -> Result<(), String> {
-    run_ps("netsh interface teredo set state disabled | Out-Null")?;
-    run_ps("netsh interface 6to4 set state state=disabled | Out-Null")?;
-    run_ps("netsh interface isatap set state disabled | Out-Null")?;
+    run_ps("netsh interface teredo set state disabled | Out-Null; netsh interface 6to4 set state state=disabled | Out-Null; netsh interface isatap set state disabled | Out-Null")?;
     Ok(())
 }
 #[cfg(windows)]
@@ -75,14 +73,14 @@ const BCAST_SERVICES: &[&str] = &[
 ];
 #[cfg(windows)]
 pub fn enable_broadcast_protection() -> Result<(), String> {
-    run_ps(
-        r#"New-Item -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\DNSClient' -Force | Out-Null; Set-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\DNSClient' -Name 'EnableMulticast' -Value 0 -Type DWord"#,
-    )?;
-    for s in BCAST_SERVICES {
-        let _ = run_ps(&format!(
-            "Stop-Service -Name '{s}' -Force -ErrorAction SilentlyContinue; Set-Service -Name '{s}' -StartupType Manual -ErrorAction SilentlyContinue"
-        ));
-    }
+    let stop_script = BCAST_SERVICES
+        .iter()
+        .map(|s| format!("Stop-Service -Name '{s}' -Force -ErrorAction SilentlyContinue; Set-Service -Name '{s}' -StartupType Manual -ErrorAction SilentlyContinue"))
+        .collect::<Vec<_>>()
+        .join("; ");
+    run_ps(&format!(
+        r#"New-Item -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\DNSClient' -Force | Out-Null; Set-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\DNSClient' -Name 'EnableMulticast' -Value 0 -Type DWord; {stop_script}"#
+    ))?;
     Ok(())
 }
 #[cfg(windows)]
@@ -133,8 +131,11 @@ netsh winsock reset | Out-Null; netsh int ip reset | Out-Null; netsh int ipv4 re
 
 // ===== 防线③：创建系统还原点（高危操作前的终极保险） =====
 pub fn create_system_restore_point() -> Result<(), String> {
-    run_ps(
+    // 还原点是"高危操作前的终极保险"，属可选兜底：
+    // 系统还原服务被禁（精简/优化/家庭版常见）时 Checkpoint-Computer 必失败，
+    // 这是正常机器状态，不该弹大红条、更不该阻断备份/急救主流程。失败静默跳过。
+    let _ = run_ps(
         "Checkpoint-Computer -Description '望仔-高危操作前' -RestorePointType MODIFY_SETTINGS -ErrorAction Stop | Out-Null",
-    )?;
+    );
     Ok(())
 }

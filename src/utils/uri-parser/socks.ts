@@ -28,7 +28,6 @@ export function URI_SOCKS(line: string): IProxySocks5Config {
   } = parseUrlLike(afterScheme, { errorMessage: 'Invalid socks uri' })
   const portNum = parsePortOrDefault(port, 443)
 
-  const auth = safeDecodeURIComponent(authRaw) ?? authRaw
   const decodedName = decodeAndTrim(nameRaw)
   const name = decodedName ?? `SOCKS5 ${server}:${portNum}`
   const proxy: IProxySocks5Config = {
@@ -37,10 +36,14 @@ export function URI_SOCKS(line: string): IProxySocks5Config {
     server,
     port: portNum,
   }
-  if (auth) {
-    const [username, password] = splitOnce(auth, ':')
-    proxy.username = username
-    proxy.password = password
+  // 先在 encode 状态下按第一个 ':' 切 username/password，再分别 decode。
+  // 不能先 decode 整个 auth 再切：否则用户名/密码里 encode 的 ':'(%3A) '@'(%40) 会被还原，干扰切分。
+  if (authRaw) {
+    const [usernameRaw, passwordRaw] = splitOnce(authRaw, ':')
+    proxy.username = safeDecodeURIComponent(usernameRaw) ?? usernameRaw
+    if (passwordRaw !== undefined) {
+      proxy.password = safeDecodeURIComponent(passwordRaw) ?? passwordRaw
+    }
   }
 
   const params = parseQueryStringNormalized(addons)

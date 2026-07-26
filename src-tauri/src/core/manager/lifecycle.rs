@@ -139,9 +139,11 @@ impl CoreManager {
     #[cfg(target_os = "windows")]
     async fn wait_for_service_if_needed(&self) {
         use crate::{config::Config, constants::timing, core::service};
+        use tauri_plugin_clash_verge_sysinfo::is_current_app_handle_admin;
         use backon::{ConstantBuilder, Retryable as _};
 
-        let needs_service = Config::verge().await.latest_arc().enable_tun_mode.unwrap_or(false);
+        let is_admin = is_current_app_handle_admin(Handle::app_handle());
+        let needs_service = Config::verge().await.latest_arc().enable_tun_mode.unwrap_or(false) && !is_admin;
 
         if !needs_service {
             return;
@@ -183,9 +185,11 @@ impl CoreManager {
         use crate::process::AsyncHandler;
         use std::sync::atomic::Ordering;
         use std::time::Instant;
+        use tauri_plugin_clash_verge_sysinfo::is_current_app_handle_admin;
 
         // 仅 TUN 模式需要服务交接
-        let needs_service = Config::verge().await.latest_arc().enable_tun_mode.unwrap_or(false);
+        let is_admin = is_current_app_handle_admin(Handle::app_handle());
+        let needs_service = Config::verge().await.latest_arc().enable_tun_mode.unwrap_or(false) && !is_admin;
         if !needs_service {
             return;
         }

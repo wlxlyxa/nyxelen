@@ -21,3 +21,9 @@ AGENTS.md
 .zed
 .tauri/
 *.key
+# 本地备份与临时修复脚本，不进仓库
+*.bak*
+fix-powershell.cjs
+fix-updater.cjs
+wz-build*.log
+*.cjs

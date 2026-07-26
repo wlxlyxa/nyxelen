@@ -22,19 +22,19 @@ notifications:
     body: Profile Reactivated.
   appQuit:
     title: About to Exit
-    body: Clash Verge is about to exit.
+    body: wangzai is about to exit.
   appHidden:
     title: Application Hidden
-    body: Clash Verge is running in the background.
+    body: wangzai is running in the background.
   updateReady:
-    title: Clash Verge Update
+    title: wangzai Update
     body: A new version (v{version}) has been downloaded and is ready to install.
     installNow: Install Now
     later: Later
 service:
-  adminInstallPrompt: Installing the Clash Verge service requires administrator privileges.
-  adminUninstallPrompt: Uninstalling the Clash Verge service requires administrator privileges.
-  translocatedCorePath: Clash Verge is running from a temporary (App Translocation) path and can't locate the core. Please move Clash Verge into the Applications folder and reopen it.
+  adminInstallPrompt: Installing the wangzai service requires administrator privileges.
+  adminUninstallPrompt: Uninstalling the wangzai service requires administrator privileges.
+  translocatedCorePath: wangzai is running from a temporary (App Translocation) path and can't locate the core. Please move Clash Verge into the Applications folder and reopen it.
 tray:
   dashboard: Dashboard
   ruleMode: Rule Mode

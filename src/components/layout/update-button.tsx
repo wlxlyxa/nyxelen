@@ -1,5 +1,5 @@
 import { Button } from '@mui/material'
-import { useRef } from 'react'
+import { useEffect, useRef } from 'react'
 
 import { DialogRef } from '@/components/base'
 import { useUpdate } from '@/hooks/use-update'
@@ -14,7 +14,13 @@ export const UpdateButton = (props: Props) => {
   const { className } = props
   const viewerRef = useRef<DialogRef>(null)
 
-  const { updateInfo } = useUpdate()
+    const { updateInfo } = useUpdate()
+
+  useEffect(function () {
+    if (updateInfo?.available) {
+      viewerRef.current?.open()
+    }
+  }, [updateInfo?.available])
 
   if (!updateInfo?.available) return null
 

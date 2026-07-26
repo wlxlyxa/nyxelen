@@ -71,6 +71,7 @@ impl NetworkManager {
     ) -> Result<Client> {
         let mut builder = Client::builder()
             .tls_backend_rustls()
+            .gzip(true)
             .redirect(reqwest::redirect::Policy::limited(10))
             .tcp_keepalive(Duration::from_secs(60))
             .pool_max_idle_per_host(0)
