@@ -44,23 +44,13 @@ export const EnhancedCard = forwardRef<HTMLElement, EnhancedCardProps>(
           flexDirection: 'column',
           borderRadius: 2,
           backgroundColor: isDark ? '#282a36' : '#ffffff',
-            border: '1px solid',
-            borderColor: 'transparent',
-            transition: 'transform .18s ease, box-shadow .25s ease, border-color .25s ease',
-            '&:hover': {
-              transform: 'translateY(-3px)',
-              borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)',
-              boxShadow: isDark ? '0 14px 34px rgba(0,0,0,0.55)' : '0 14px 34px rgba(0,0,0,0.12)',
-            },
           border: '1px solid',
           borderColor: 'transparent',
           transition: 'transform .18s ease, box-shadow .25s ease, border-color .25s ease',
           '&:hover': {
             transform: 'translateY(-3px)',
-            borderColor: 'divider',
-            boxShadow: isDark
-              ? '0 12px 32px rgba(0,0,0,0.5)'
-              : '0 12px 32px rgba(0,0,0,0.10)',
+            borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)',
+            boxShadow: isDark ? '0 14px 34px rgba(0,0,0,0.55)' : '0 14px 34px rgba(0,0,0,0.12)',
           },
         }}
         ref={ref}
