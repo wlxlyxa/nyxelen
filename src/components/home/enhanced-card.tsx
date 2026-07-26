@@ -1,7 +1,6 @@
 import { Box, Typography, alpha, useTheme } from '@mui/material'
 import React, { forwardRef, ReactNode } from 'react'
 
-// 自定义卡片组件接口
 interface EnhancedCardProps {
   title: ReactNode
   icon: ReactNode
@@ -12,7 +11,6 @@ interface EnhancedCardProps {
   noContentPadding?: boolean
 }
 
-// 自定义卡片组件
 export const EnhancedCard = forwardRef<HTMLElement, EnhancedCardProps>(
   (
     {
@@ -29,7 +27,6 @@ export const EnhancedCard = forwardRef<HTMLElement, EnhancedCardProps>(
     const theme = useTheme()
     const isDark = theme.palette.mode === 'dark'
 
-    // 统一的标题截断样式
     const titleTruncateStyle = {
       minWidth: 0,
       maxWidth: '100%',
@@ -47,6 +44,16 @@ export const EnhancedCard = forwardRef<HTMLElement, EnhancedCardProps>(
           flexDirection: 'column',
           borderRadius: 2,
           backgroundColor: isDark ? '#282a36' : '#ffffff',
+          border: '1px solid',
+          borderColor: 'transparent',
+          transition: 'transform .18s ease, box-shadow .25s ease, border-color .25s ease',
+          '&:hover': {
+            transform: 'translateY(-3px)',
+            borderColor: 'divider',
+            boxShadow: isDark
+              ? '0 12px 32px rgba(0,0,0,0.5)'
+              : '0 12px 32px rgba(0,0,0,0.10)',
+          },
         }}
         ref={ref}
       >

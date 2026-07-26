@@ -1,7 +1,7 @@
-import DnsRoundedIcon from '@mui/icons-material/DnsRounded'
+import ArticleRoundedIcon from '@mui/icons-material/ArticleRounded'
 import ForkRightRoundedIcon from '@mui/icons-material/ForkRightRounded'
-import HomeRoundedIcon from '@mui/icons-material/HomeRounded'
-import LanguageRoundedIcon from '@mui/icons-material/LanguageRounded'
+import ShieldRoundedIcon from '@mui/icons-material/ShieldRounded'
+import TimelineRoundedIcon from '@mui/icons-material/TimelineRounded'
 import LockOpenRoundedIcon from '@mui/icons-material/LockOpenRounded'
 import SettingsRoundedIcon from '@mui/icons-material/SettingsRounded'
 import SubjectRoundedIcon from '@mui/icons-material/SubjectRounded'
@@ -10,7 +10,7 @@ import { lazy, Suspense, type ComponentType } from 'react'
 import { createBrowserRouter, RouteObject } from 'react-router'
 
 import ConnectionsSvg from '@/assets/image/itemicon/connections.svg?react'
-import HomeSvg from '@/assets/image/itemicon/home.svg?react'
+
 import LogsSvg from '@/assets/image/itemicon/logs.svg?react'
 import ProfilesSvg from '@/assets/image/itemicon/profiles.svg?react'
 import ProxiesSvg from '@/assets/image/itemicon/proxies.svg?react'
@@ -103,7 +103,7 @@ export const navItems = [
   {
     label: 'layout.components.navigation.tabs.home',
     path: '/',
-    icon: [<HomeRoundedIcon key="mui" />, <HomeSvg key="svg" />],
+    icon: [<ShieldRoundedIcon key="mui" />, <ShieldRoundedIcon key="svg" />],
     Component: HomePage,
   },
   {
@@ -115,13 +115,13 @@ export const navItems = [
   {
     label: 'layout.components.navigation.tabs.profiles',
     path: '/profile',
-    icon: [<DnsRoundedIcon key="mui" />, <ProfilesSvg key="svg" />],
+    icon: [<ArticleRoundedIcon key="mui" />, <ProfilesSvg key="svg" />],
     ...createLazyRoute(() => import('./profiles'), 'rules'),
   },
   {
     label: 'layout.components.navigation.tabs.connections',
     path: '/connections',
-    icon: [<LanguageRoundedIcon key="mui" />, <ConnectionsSvg key="svg" />],
+    icon: [<TimelineRoundedIcon key="mui" />, <ConnectionsSvg key="svg" />],
     ...createLazyRoute(() => import('./connections'), 'connections'),
   },
   {
