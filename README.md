@@ -1,113 +1,64 @@
-<h1 align="center">
-  <img src="src-tauri/icons/icon.png" alt="Clash" width="128" />
-  <br>
-  Continuation of <a href="https://github.com/zzzgydi/clash-verge">Clash Verge</a>
-  <br>
-</h1>
+<img src="src-tauri/icons/icon.png" width="128" align="right" alt="Nyxelen logo" />
 
-<h3 align="center">
-A Clash Meta GUI based on <a href="https://github.com/tauri-apps/tauri">Tauri</a>.
-</h3>
+# NYXELEN · 隐枢
 
-<p align="center">
-  Languages:
-  <a href="./README.md">简体中文</a> ·
-  <a href="./docs/README_en.md">English</a> ·
-  <a href="./docs/README_es.md">Español</a> ·
-  <a href="./docs/README_ru.md">Русский</a> ·
-  <a href="./docs/README_ja.md">日本語</a> ·
-  <a href="./docs/README_ko.md">한국어</a> ·
-  <a href="./docs/README_fa.md">فارسی</a>
-</p>
+> 夜再深，也替你守着这条连接。
 
-## Preview
+[![Based on Clash Verge Rev](https://img.shields.io/badge/based%20on-clash--verge--rev-5B6B82)](https://github.com/clash-verge-rev/clash-verge-rev)
+[![License](https://img.shields.io/badge/license-GPL--3.0-E8B04B)](LICENSE)
+[![Version](https://img.shields.io/badge/version-3.0.0-8E9CD6)](https://github.com/wlxlyxa/nyxelen/releases)
 
-| Dark                             | Light                             |
-| -------------------------------- | --------------------------------- |
-| ![预览](./docs/preview_dark.png) | ![预览](./docs/preview_light.png) |
+Nyxelen（隐枢）是一款基于 [clash-verge-rev](https://github.com/clash-verge-rev/clash-verge-rev) / [mihomo](https://github.com/MetaCubeX/mihomo) 内核的桌面代理客户端。它不做"又一个套壳"——而是在成熟的代理内核之上，把**隐私防护**做成一等公民：一屏看清你的真实 IP 是否暴露，一键堵住那些悄悄泄露你的缝隙。
 
-## Install
+「隐枢」二字，是它的内核隐喻：**隐**，是把你藏进夜里；**枢**，是那道贯穿始终、守住一切的轴。
 
-请到发布页面下载对应的安装包：[Release page](https://github.com/clash-verge-rev/clash-verge-rev/releases)<br>
-Go to the [Release page](https://github.com/clash-verge-rev/clash-verge-rev/releases) to download the corresponding installation package<br>
-Supports Windows (x64/x86), Linux (x64/arm64) and macOS 11+ (intel/apple).
+## 它能做什么
 
-#### 我应当怎样选择发行版
+🛡 **防护态势** —— 首页即战场态势。11 项真实 IP 防护通道，一键全开或逐项点切，开没开、防没防住，一眼分明。
 
-| 版本        | 特征                                     | 链接                                                                                   |
-| :---------- | :--------------------------------------- | :------------------------------------------------------------------------------------- |
-| Stable      | 正式版，高可靠性，适合日常使用。         | [Release](https://github.com/clash-verge-rev/clash-verge-rev/releases)                 |
-| Alpha(废弃) | 测试发布流程。                           | [Alpha](https://github.com/clash-verge-rev/clash-verge-rev/releases/tag/alpha)         |
-| AutoBuild   | 滚动更新版，适合测试反馈，可能存在缺陷。 | [AutoBuild](https://github.com/clash-verge-rev/clash-verge-rev/releases/tag/autobuild) |
+🔒 **防泄漏套件** —— 把那些"代理开着却仍在泄露"的隐蔽通道逐个堵上：
 
-#### 安装说明和常见问题，请到 [文档页](https://clash-verge-rev.github.io/) 查看
+- WebRTC 防泄漏（Chrome / Edge 策略级拦截；需配合「系统代理 + 虚拟网卡」同时开启）
+- DoH 加密 DNS 阻断 + 关闭 Windows 智能多宿主名称解析（SMHNR）
+- IPv6 隧道封装与防泄漏
+- NCSI 直连阻断、QUIC / HTTP3 阻断
+- WPAD 自动代理发现、在线证书检查、局域网名称解析 / 广播族 等
 
-### TG 频道: [@clash_verge_rev](https://t.me/clash_verge_re)
+🔍 **隐私自检** —— 出口 IP、自治域、服务商、代理标记、本机与出口时区一致性，实时校验，泄露无处藏。
 
----
+🩹 **断网急救** —— 应用内急救 + 提权急救两步兜底；高危操作前一键创建系统还原点，救不回还能滚回去。
 
-## Promotion
+🧩 **进程代理** —— 让每个程序走自己想走的路（即将上线）。
 
-### 🤖 [GPTKefu —— 与 Crisp 深度整合的 AI 智能客服平台](https://gptkefu.com)
+## 防护态势 · 一屏掌握
 
-- 🧠 深度理解完整对话上下文 + 图片识别，自动给出专业、精准的回复，告别机械式客服。
-- ♾️ **不限回答数量**，无额度焦虑，区别于其他按条计费的 AI 客服产品。
-- 💬 售前咨询、售后服务、复杂问题解答，全场景轻松覆盖，真实用户案例已验证效果。
-- ⚡ 3 分钟极速接入，零门槛上手，即刻提升客服效率与客户满意度。
-- 🎁 高级套餐免费试用 14 天，先体验后付费：👉 [立即试用](https://gptkefu.com)
-- 📢 智能客服TG 频道：[@crisp_ai](https://t.me/crisp_ai)
+同一块面板的两种状态——开与关，一眼看清你的真实 IP 守没守住：
 
----
+| 🛡 全开 · 真实 IP 已守住 | ⚠ 全关 · 真实 IP 正在暴露 |
+|:---:|:---:|
+| <img src="docs/screenshots/home-on.png" alt="防护全开 11/11，真实 IP 已守住" width="420"/> | <img src="docs/screenshots/home-off.png" alt="未防护 0/11，真实 IP 正在暴露" width="420"/> |
+| 11 项防护通道全绿，一键开启 | 0 项开启，红色警示真实 IP 暴露 |
 
-## Features
+## 视觉
 
-- 基于性能强劲的 Rust 和 Tauri 2 框架
-- 内置[Clash.Meta(mihomo)](https://github.com/MetaCubeX/mihomo)内核，并支持切换 `Alpha` 版本内核。
-- 简洁美观的用户界面，支持自定义主题颜色、代理组/托盘图标以及 `CSS Injection`。
-- 配置文件管理和增强（Merge 和 Script），配置文件语法提示。
-- 系统代理和守卫、`TUN(虚拟网卡)` 模式。
-- 可视化节点和规则编辑
-- WebDav 配置备份和同步
+**铰链知节** mark：三节错落的胶囊，被一道望仔金轴贯穿——蓝紫是夜里流转的数据，金轴是守望它的那道力。深底单色版用于系统托盘，缩放至 16px 仍可辨认。
 
-### FAQ
+左上角 **NYXELEN / 隐枢** 双行字标，悬停时字距微张、染上金芒，像一次呼吸。
 
-Refer to [Doc FAQ Page](https://clash-verge-rev.github.io/faq/windows.html)
+## 下载与安装
 
-### Donation
+前往 [Releases](https://github.com/wlxlyxa/nyxelen/releases) 或 [nyxelen.com](https://nyxelen.com) 下载 Windows 安装包（`Nyxelen_*_x64-setup.exe`），双击安装即可使用。
 
-[捐助Clash Verge Rev的开发](https://github.com/sponsors/clash-verge-rev)
+> 已安装旧版「望仔（WangZai）」的用户：直接安装 Nyxelen 即可。订阅与配置随数据目录保留，无需重新配置。
 
-## Development
+## 致上游与协议
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for more details.
+Nyxelen 基于 [clash-verge-rev](https://github.com/clash-verge-rev/clash-verge-rev) 二次开发，内核为 [mihomo](https://github.com/MetaCubeX/mihomo)，遵循 **GPL-3.0** 协议。
 
-To run the development server, execute the following commands after all prerequisites for **Tauri** are installed:
+- 本项目保留原始版权与协议声明，并注明基于 clash-verge-rev 二次开发；
+- 衍生分发保持源码开放；
+- 向 clash-verge-rev 与 mihomo 的维护者致谢——没有他们，就没有 Nyxelen 站立的地基。
 
-```shell
-pnpm i
-pnpm run prebuild
-pnpm dev
-```
+## 隐私观
 
-## Contributions
-
-Issue and PR welcome!
-
-## Acknowledgement
-
-Clash Verge rev was based on or inspired by these projects and so on:
-
-- [zzzgydi/clash-verge](https://github.com/zzzgydi/clash-verge): A Clash GUI based on tauri. Supports Windows, macOS and Linux.
-- [tauri-apps/tauri](https://github.com/tauri-apps/tauri): Build smaller, faster, and more secure desktop applications with a web frontend.
-- [Dreamacro/clash](https://github.com/Dreamacro/clash): A rule-based tunnel in Go.
-- [MetaCubeX/mihomo](https://github.com/MetaCubeX/mihomo): A rule-based tunnel in Go.
-- [Fndroid/clash_for_windows_pkg](https://github.com/Fndroid/clash_for_windows_pkg): A Windows/macOS GUI based on Clash.
-- [vitejs/vite](https://github.com/vitejs/vite): Next generation frontend tooling. It's fast!
-
-## License
-
-GPL-3.0 License. See [License here](./LICENSE) for details.
-
-<p align="right">
-  <sub><a href="https://sponsorship.forztn.com/github/clash-verge-rev/clash-verge-rev">Supported By ForZTN</a></sub>
-</p>
+Nyxelen 不收集、不上报你的任何连接数据。所有防护与自检均在你本机完成。它存在的唯一目的，是让你的流量，只走你想让它走的路。
