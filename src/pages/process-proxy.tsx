@@ -62,11 +62,28 @@ const writeStore = (v: Record<string, string>) => {
     /* 隐私模式写不进就放弃，不阻塞 */
   }
 }
-// 由 policies 构造 mihomo 规则（PROXY 旧值不参与，等迁移修正）
 const buildRules = (pols: Record<string, string>) =>
   Object.entries(pols)
     .filter(([_, v]) => v && v !== '__global__' && v !== 'PROXY')
     .map(([n, v]) => `PROCESS-NAME,${n},${v}`)
+
+// 首字母头像：程序名 hash → 稳定色相；同名同色、不同名各一色
+const stripExt = (name: string) => name.replace(/\.(exe|app)$/i, '').toLowerCase()
+const avatarHue = (name: string) => {
+  const key = stripExt(name)
+  let h = 0
+  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) % 360
+  return h
+}
+const avatarStyle = (name: string) => {
+  const h = avatarHue(name)
+  return { background: `linear-gradient(135deg, hsl(${h} 64% 57%), hsl(${h} 56% 44%))` }
+}
+const initial = (name: string) => {
+  const key = stripExt(name)
+  const ch = (key.match(/[a-z0-9]/) || [key[0] || '?'])[0]
+  return ch.toUpperCase()
+}
 
 const REFRESH_MS = 12000
 
@@ -79,7 +96,6 @@ const ProcessProxyPage = () => {
   const [applyError, setApplyError] = useState<string | null>(null)
   const [appliedCount, setAppliedCount] = useState<number | null>(null)
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
-  // 注入只由 setPolicy 触发；policiesRef 存最新值供事件回调读取，debounceRef 防抖
   const policiesRef = useRef<Record<string, string>>(policies)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -92,7 +108,6 @@ const ProcessProxyPage = () => {
       .map(([name]) => name)
   }, [proxies])
 
-  // 注入 mihomo；silent=true 时不显示"正在注入"（迁移用）
   const applyRules = useCallback(async (rules: string[], silent: boolean) => {
     if (!silent) setApplying(true)
     setApplyError(null)
@@ -108,7 +123,6 @@ const ProcessProxyPage = () => {
     }
   }, [])
 
-  // PROXY 旧值迁移：静默修正，不惊动用户（不显示"正在注入"）
   useEffect(() => {
     if (proxyGroups.length === 0) return
     if (!Object.values(policiesRef.current).includes('PROXY')) return
@@ -117,12 +131,10 @@ const ProcessProxyPage = () => {
     policiesRef.current = next
     writeStore(next)
     setPolicies(next)
-    const rules = buildRules(next)
     console.log('[process-proxy] MIGRATE PROXY ->', proxyGroups[0], '(silent)')
-    applyRules(rules, true)
+    applyRules(buildRules(next), true)
   }, [proxyGroups, applyRules])
 
-  // 用户改选择 → 唯一会显示"正在注入"的注入触发点
   const setPolicy = (name: string, value: string) => {
     const next = { ...policiesRef.current }
     if (value === '__global__') delete next[name]
@@ -130,10 +142,9 @@ const ProcessProxyPage = () => {
     policiesRef.current = next
     writeStore(next)
     setPolicies(next)
-    const rules = buildRules(next)
     console.log('[process-proxy] setPolicy INJECT', name, '->', value)
     if (debounceRef.current) clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(() => applyRules(rules, false), 400)
+    debounceRef.current = setTimeout(() => applyRules(buildRules(next), false), 400)
   }
 
   const selectedCount = useMemo(
@@ -284,7 +295,7 @@ const ProcessProxyPage = () => {
                   const mainRow = (
                     <TableRow key={g.name} hover sx={{ transition: 'background .18s ease, box-shadow .18s ease', ...chosenSx }}>
                       <TableCell>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                           <IconButton
                             size="small"
                             disabled={!multi}
@@ -297,6 +308,30 @@ const ProcessProxyPage = () => {
                           >
                             <KeyboardArrowRightRounded sx={{ fontSize: 18 }} />
                           </IconButton>
+                          <Box
+                            sx={{
+                              width: 26,
+                              height: 26,
+                              minWidth: 26,
+                              borderRadius: '7px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: '#fff',
+                              fontSize: 13,
+                              fontWeight: 800,
+                              letterSpacing: 0.3,
+                              userSelect: 'none',
+                              ...avatarStyle(g.name),
+                              boxShadow: chosen
+                                ? (t: any) => `0 0 0 2px ${t.palette.success.main}, 0 1px 3px rgba(0,0,0,.4)`
+                                : '0 1px 3px rgba(0,0,0,.4)',
+                              transition: 'transform .15s ease, box-shadow .15s ease',
+                              'tr:hover &': { transform: 'scale(1.08)' },
+                            }}
+                          >
+                            {initial(g.name)}
+                          </Box>
                           <Tooltip title={g.instances[0]?.path} arrow>
                             <Typography variant="body2" sx={{ fontWeight: 600 }}>
                               {g.name}
