@@ -724,6 +724,26 @@ pub async fn enhance() -> Result<(Mapping, HashSet<String>, HashMap<String, Resu
     let config = cleanup_proxy_groups(config);
     let config = use_sort(config);
 
+    // ===== Nyxelen 进程代理：prepend verge.process_rules 到 rules 最前（压过域名/IP 规则）=====
+    let config = {
+        let mut config = config;
+        let process_rules = crate::config::Config::verge().await.latest_arc().process_rules.clone();
+        if let Some(rules) = process_rules {
+            if !rules.is_empty() {
+                let rules_key = serde_yaml_ng::Value::String("rules".into());
+                if config.get(&rules_key).is_none() {
+                    config.insert(rules_key.clone(), serde_yaml_ng::Value::Sequence(Default::default()));
+                }
+                if let Some(serde_yaml_ng::Value::Sequence(seq)) = config.get_mut(&rules_key) {
+                    for rule in rules.into_iter().rev() {
+                        seq.insert(0, serde_yaml_ng::Value::String(rule.into()));
+                    }
+                }
+            }
+        }
+        config
+    };
+
     let mut exists_keys_set = HashSet::new();
     exists_keys_set.extend(exists_keys);
 

@@ -170,6 +170,10 @@ pub struct IVerge {
     /// 测试站列表
     pub test_list: Option<Vec<IVergeTestItem>>,
 
+    /// Nyxelen 进程代理规则（PROCESS-NAME 规则串，enhance 时 prepend 到 rules 最前）
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub process_rules: Option<Vec<String>>,
+
     /// 日志清理
     /// 0: 不清理; 1: 1天；2: 7天; 3: 30天; 4: 90天
     pub auto_log_clean: Option<i32>,
@@ -518,6 +522,7 @@ impl IVerge {
         patch!(enable_tun_mode);
         patch!(enable_auto_launch);
         patch!(enable_silent_start);
+        patch!(process_rules);
         patch!(enable_hover_jump_navigator);
         patch!(hover_jump_navigator_delay);
         #[cfg(not(target_os = "windows"))]
