@@ -62,6 +62,11 @@ const writeStore = (v: Record<string, string>) => {
     /* 隐私模式写不进就放弃，不阻塞 */
   }
 }
+// 由 policies 构造 mihomo 规则（PROXY 旧值不参与，等迁移修正）
+const buildRules = (pols: Record<string, string>) =>
+  Object.entries(pols)
+    .filter(([_, v]) => v && v !== '__global__' && v !== 'PROXY')
+    .map(([n, v]) => `PROCESS-NAME,${n},${v}`)
 
 const REFRESH_MS = 12000
 
@@ -74,8 +79,9 @@ const ProcessProxyPage = () => {
   const [applyError, setApplyError] = useState<string | null>(null)
   const [appliedCount, setAppliedCount] = useState<number | null>(null)
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
-  // 首挂载跳过注入：规则已在 verge 落盘、启动时已合成进 mihomo，切回页面不该重注入
-  const mountedRef = useRef(false)
+  // 注入只由 setPolicy 触发；policiesRef 存最新值供事件回调读取，debounceRef 防抖
+  const policiesRef = useRef<Record<string, string>>(policies)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const { proxies, isProxiesPending } = useProxiesData()
 
@@ -86,26 +92,48 @@ const ProcessProxyPage = () => {
       .map(([name]) => name)
   }, [proxies])
 
-  // 旧 localStorage 残留的 'PROXY' 值 → 迁移成第一个真实组名
+  // 注入 mihomo；silent=true 时不显示"正在注入"（迁移用）
+  const applyRules = useCallback(async (rules: string[], silent: boolean) => {
+    if (!silent) setApplying(true)
+    setApplyError(null)
+    try {
+      await invoke('patch_verge_config', { payload: { process_rules: rules } })
+      await invoke('enhance_profiles')
+      if (!silent) setAppliedCount(rules.length)
+    } catch (e) {
+      console.error('[process-proxy] apply failed', e)
+      if (!silent) setApplyError(e instanceof Error ? e.message : String(e))
+    } finally {
+      if (!silent) setApplying(false)
+    }
+  }, [])
+
+  // PROXY 旧值迁移：静默修正，不惊动用户（不显示"正在注入"）
   useEffect(() => {
     if (proxyGroups.length === 0) return
-    setPolicies((prev) => {
-      if (!Object.values(prev).includes('PROXY')) return prev
-      const next: Record<string, string> = {}
-      for (const [k, v] of Object.entries(prev)) next[k] = v === 'PROXY' ? proxyGroups[0] : v
-      writeStore(next)
-      return next
-    })
-  }, [proxyGroups])
+    if (!Object.values(policiesRef.current).includes('PROXY')) return
+    const next: Record<string, string> = {}
+    for (const [k, v] of Object.entries(policiesRef.current)) next[k] = v === 'PROXY' ? proxyGroups[0] : v
+    policiesRef.current = next
+    writeStore(next)
+    setPolicies(next)
+    const rules = buildRules(next)
+    console.log('[process-proxy] MIGRATE PROXY ->', proxyGroups[0], '(silent)')
+    applyRules(rules, true)
+  }, [proxyGroups, applyRules])
 
+  // 用户改选择 → 唯一会显示"正在注入"的注入触发点
   const setPolicy = (name: string, value: string) => {
-    setPolicies((prev) => {
-      const next = { ...prev }
-      if (value === '__global__') delete next[name]
-      else next[name] = value
-      writeStore(next)
-      return next
-    })
+    const next = { ...policiesRef.current }
+    if (value === '__global__') delete next[name]
+    else next[name] = value
+    policiesRef.current = next
+    writeStore(next)
+    setPolicies(next)
+    const rules = buildRules(next)
+    console.log('[process-proxy] setPolicy INJECT', name, '->', value)
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => applyRules(rules, false), 400)
   }
 
   const selectedCount = useMemo(
@@ -135,7 +163,8 @@ const ProcessProxyPage = () => {
     try {
       setProcesses(await invoke<ProcessInfo[]>('get_running_processes'))
     } catch (e) {
-      if (!silent) setListError(String(e))
+      console.error('[process-proxy] load failed', e)
+      if (!silent) setListError(e instanceof Error ? e.message : String(e))
     } finally {
       if (!silent) setLoading(false)
     }
@@ -151,34 +180,6 @@ const ProcessProxyPage = () => {
     }, REFRESH_MS)
     return () => clearInterval(id)
   }, [loadProcesses])
-
-  // policies 变化 → 注入；但首挂载跳过（用户没操作就不该有动静）
-  useEffect(() => {
-    if (!mountedRef.current) {
-      mountedRef.current = true
-      return
-    }
-    const rules = Object.entries(policies)
-      .filter(([_, v]) => v && v !== '__global__' && v !== 'PROXY')
-      .map(([name, v]) => `PROCESS-NAME,${name},${v}`)
-    const timer = setTimeout(
-      async () => {
-        setApplying(true)
-        setApplyError(null)
-        try {
-          await invoke('patch_verge_config', { payload: { process_rules: rules } })
-          await invoke('enhance_profiles')
-          setAppliedCount(rules.length)
-        } catch (e) {
-          setApplyError(String(e))
-        } finally {
-          setApplying(false)
-        }
-      },
-      400,
-    )
-    return () => clearTimeout(timer)
-  }, [policies])
 
   const toggleExpand = (name: string) => setExpanded((prev) => ({ ...prev, [name]: !prev[name] }))
 
@@ -216,21 +217,23 @@ const ProcessProxyPage = () => {
                 size="small"
                 color="inherit"
                 onClick={() => {
+                  policiesRef.current = {}
                   setPolicies({})
                   writeStore({})
+                  applyRules([], false)
                 }}
               >
                 <ClearAllRounded fontSize="small" />
               </IconButton>
             }
           >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
               <Chip
                 label={`已设定 ${selectedCount} 个`}
                 size="small"
                 color={applyError ? 'error' : applying ? 'info' : 'success'}
               />
-              <span>
+              <span style={{ wordBreak: 'break-all' }}>
                 {applyError
                   ? `生效失败：${applyError}`
                   : applying
@@ -274,8 +277,7 @@ const ProcessProxyPage = () => {
                   const displayValue = rawValue === 'PROXY' ? (proxyGroups[0] ?? '__global__') : rawValue
                   const chosenSx = chosen
                     ? {
-                        boxShadow: 'inset 3px 0 0 0',
-                        boxShadowColor: 'success.main',
+                        boxShadow: (t: any) => `inset 3px 0 0 0 ${t.palette.success.main}`,
                         bgcolor: (t: any) => `${t.palette.success.main}12`,
                       }
                     : {}
