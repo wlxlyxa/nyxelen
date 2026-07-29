@@ -1,4 +1,4 @@
-import { AccountTreeRounded, ClearAllRounded, DnsRounded, RefreshRounded } from '@mui/icons-material'
+import { AccountTreeRounded, CheckCircleRounded, ClearAllRounded, DnsRounded, RefreshRounded } from '@mui/icons-material'
 import {
   Alert,
   Box,
@@ -16,7 +16,7 @@ import {
   Typography,
 } from '@mui/material'
 import { invoke } from '@tauri-apps/api/core'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { BasePage } from '@/components/base'
 import { EnhancedCard } from '@/components/home/enhanced-card'
@@ -35,8 +35,10 @@ const POLICY_OPTIONS = [
   { value: 'REJECT', label: '拦截' },
 ]
 
-const STORE_KEY = 'nyxelen_process_policies'
+// PROXY 映射到项目默认代理策略组（tmpl.rs 里的「节点选择」）；DIRECT/REJECT 是 mihomo 内置
+const policyToTarget = (v: string) => (v === 'PROXY' ? '节点选择' : v)
 
+const STORE_KEY = 'nyxelen_process_policies'
 const readStore = (): Record<string, string> => {
   try {
     const raw = localStorage.getItem(STORE_KEY)
@@ -49,16 +51,19 @@ const writeStore = (v: Record<string, string>) => {
   try {
     localStorage.setItem(STORE_KEY, JSON.stringify(v))
   } catch {
-    /* 隐私模式等写不进就放弃，不阻塞 */
+    /* 隐私模式写不进就放弃，不阻塞 */
   }
 }
 
 const ProcessProxyPage = () => {
   const [processes, setProcesses] = useState<ProcessInfo[]>([])
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  // 按进程名存策略（L1 语义=按名分流；名比 pid 稳定，可本地持久化）
+  const [listError, setListError] = useState<string | null>(null)
   const [policies, setPolicies] = useState<Record<string, string>>(readStore)
+  const [applying, setApplying] = useState(false)
+  const [applyError, setApplyError] = useState<string | null>(null)
+  const [appliedCount, setAppliedCount] = useState<number | null>(null)
+  const firstRun = useRef(true)
 
   const setPolicy = (name: string, value: string) => {
     setPolicies((prev) => {
@@ -75,14 +80,38 @@ const ProcessProxyPage = () => {
     [policies],
   )
 
+  // policies 一变 → 防抖 → 存进 verge + 触发 enhance 让规则真生效
+  useEffect(() => {
+    const rules = Object.entries(policies)
+      .filter(([_, v]) => v && v !== '__global__')
+      .map(([name, v]) => `PROCESS-NAME,${name},${policyToTarget(v)}`)
+    const timer = setTimeout(
+      async () => {
+        setApplying(true)
+        setApplyError(null)
+        try {
+          await invoke('patch_verge_config', { payload: { process_rules: rules } })
+          await invoke('enhance_profiles')
+          setAppliedCount(rules.length)
+        } catch (e) {
+          setApplyError(String(e))
+        } finally {
+          setApplying(false)
+        }
+      },
+      firstRun.current ? 0 : 400,
+    )
+    firstRun.current = false
+    return () => clearTimeout(timer)
+  }, [policies])
+
   const loadProcesses = async () => {
     setLoading(true)
-    setError(null)
+    setListError(null)
     try {
-      const list = await invoke<ProcessInfo[]>('get_running_processes')
-      setProcesses(list)
+      setProcesses(await invoke<ProcessInfo[]>('get_running_processes'))
     } catch (e) {
-      setError(String(e))
+      setListError(String(e))
     } finally {
       setLoading(false)
     }
@@ -97,7 +126,7 @@ const ProcessProxyPage = () => {
       <EnhancedCard title="进程代理 · 按程序分流" icon={<AccountTreeRounded />} iconColor="primary">
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2, pt: 2, gap: 1 }}>
           <Typography variant="body2" sx={{ opacity: 0.72 }}>
-            为每个程序单独指定走代理还是直连，规则按进程名生效。
+            为每个程序单独指定走代理还是直连，规则按进程名生效、优先于域名规则。
           </Typography>
           <Tooltip title="刷新进程列表">
             <IconButton size="small" onClick={loadProcesses} disabled={loading}>
@@ -112,24 +141,41 @@ const ProcessProxyPage = () => {
 
         {selectedCount > 0 && (
           <Alert
-            severity="warning"
+            severity={applyError ? 'error' : applying ? 'info' : 'success'}
+            icon={
+              applying ? (
+                <CircularProgress size={16} sx={{ mt: 0.25 }} />
+              ) : appliedCount !== null && !applyError ? (
+                <CheckCircleRounded />
+              ) : undefined
+            }
             sx={{ mx: 2, mt: 1.5 }}
             action={
               <IconButton
                 size="small"
                 color="inherit"
-                onClick={() => setPolicies((p) => {
+                onClick={() => {
+                  setPolicies({})
                   writeStore({})
-                  return {}
-                })}
+                }}
               >
                 <ClearAllRounded fontSize="small" />
               </IconButton>
             }
           >
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Chip label={`已设定 ${selectedCount} 个`} size="small" color="warning" />
-              <span>规则注入引擎开发中，当前设定暂不生效——下一版接通后即刻生效。</span>
+              <Chip
+                label={`已设定 ${selectedCount} 个`}
+                size="small"
+                color={applyError ? 'error' : applying ? 'info' : 'success'}
+              />
+              <span>
+                {applyError
+                  ? `生效失败：${applyError}`
+                  : applying
+                    ? '正在注入规则到 mihomo…'
+                    : '规则已注入 mihomo 并生效（重启不丢）'}
+              </span>
             </Box>
           </Alert>
         )}
@@ -139,9 +185,9 @@ const ProcessProxyPage = () => {
             <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
               <CircularProgress size={28} />
             </Box>
-          ) : error ? (
+          ) : listError ? (
             <Alert severity="error" sx={{ mx: 1 }}>
-              {error}
+              {listError}
             </Alert>
           ) : processes.length === 0 ? (
             <Box sx={{ textAlign: 'center', py: 6, opacity: 0.5 }}>
@@ -169,8 +215,8 @@ const ProcessProxyPage = () => {
                         transition: 'background .18s ease, box-shadow .18s ease',
                         ...(chosen && {
                           boxShadow: 'inset 3px 0 0 0',
-                          boxShadowColor: 'warning.main',
-                          bgcolor: (t) => `${t.palette.warning.main}14`,
+                          boxShadowColor: 'success.main',
+                          bgcolor: (t) => `${t.palette.success.main}12`,
                         }),
                       }}
                     >
@@ -203,7 +249,7 @@ const ProcessProxyPage = () => {
                             minWidth: 110,
                             fontSize: 13,
                             transition: 'color .18s ease',
-                            ...(chosen && { color: 'warning.main', fontWeight: 700 }),
+                            ...(chosen && { color: 'success.main', fontWeight: 700 }),
                           }}
                         >
                           {POLICY_OPTIONS.map((opt) => (
