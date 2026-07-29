@@ -43,8 +43,13 @@ const FIXED_OPTIONS = [
   { value: 'DIRECT', label: '直连' },
   { value: 'REJECT', label: '拦截' },
 ]
+// 下拉里"代理组"那一栏的标题。若与你某个真实组名重名看着别扭，改这一行即可（如 '走哪个节点'）
+const GROUP_HEADER_LABEL = '节点选择'
 const GROUP_TYPES = ['Selector', 'URLTest', 'Fallback', 'LoadBalance']
-const BUILTIN_GROUPS = ['GLOBAL', 'DIRECT', 'REJECT', 'PASS', 'COMPATIBLE']
+// 全小写比较：GLOBAL 是 mihomo 虚拟组，rules 不可引用，必须挡在下拉外
+const BUILTIN_GROUPS = ['global', 'direct', 'reject', 'pass', 'compatible']
+// 纵深防御：这些名字即使漏网，也绝不作为进程规则目标
+const NOT_TARGET = new Set(['global', 'pass', 'compatible'])
 
 const STORE_KEY = 'nyxelen_process_policies'
 const readStore = (): Record<string, string> => {
@@ -64,10 +69,15 @@ const writeStore = (v: Record<string, string>) => {
 }
 const buildRules = (pols: Record<string, string>) =>
   Object.entries(pols)
-    .filter(([_, v]) => v && v !== '__global__' && v !== 'PROXY')
+    .filter(
+      ([_, v]) =>
+        v && v !== '__global__' && v !== 'PROXY' && !NOT_TARGET.has(v.toLowerCase()),
+    )
     .map(([n, v]) => `PROCESS-NAME,${n},${v}`)
 
-// 首字母头像：程序名 hash → 稳定色相；同名同色、不同名各一色
+const REFRESH_MS = 12000
+
+// 首字母头像：程序名 hash → 稳定色相（定义在组件前，避免 const 无 hoisting 的坑）
 const stripExt = (name: string) => name.replace(/\.(exe|app)$/i, '').toLowerCase()
 const avatarHue = (name: string) => {
   const key = stripExt(name)
@@ -84,8 +94,6 @@ const initial = (name: string) => {
   const ch = (key.match(/[a-z0-9]/) || [key[0] || '?'])[0]
   return ch.toUpperCase()
 }
-
-const REFRESH_MS = 12000
 
 const ProcessProxyPage = () => {
   const [processes, setProcesses] = useState<ProcessInfo[]>([])
@@ -104,7 +112,11 @@ const ProcessProxyPage = () => {
   const proxyGroups = useMemo(() => {
     if (!proxies) return [] as string[]
     return Object.entries(proxies as Record<string, { type?: string }>)
-      .filter(([name, item]) => GROUP_TYPES.includes(item?.type ?? '') && !BUILTIN_GROUPS.includes(name))
+      .filter(
+        ([name, item]) =>
+          GROUP_TYPES.includes(item?.type ?? '') &&
+          !BUILTIN_GROUPS.includes(name.toLowerCase()),
+      )
       .map(([name]) => name)
   }, [proxies])
 
@@ -123,17 +135,33 @@ const ProcessProxyPage = () => {
     }
   }, [])
 
+  // 代理组加载完成后清洗毒数据（global/空/过期旧组名/PROXY 迁移），并静默重应用干净规则清除 verge 毒
   useEffect(() => {
-    if (proxyGroups.length === 0) return
-    if (!Object.values(policiesRef.current).includes('PROXY')) return
+    if (isProxiesPending) return
+    const valid = new Set<string>(['DIRECT', 'REJECT', ...proxyGroups])
+    const cur = policiesRef.current
     const next: Record<string, string> = {}
-    for (const [k, v] of Object.entries(policiesRef.current)) next[k] = v === 'PROXY' ? proxyGroups[0] : v
+    let changed = false
+    for (const [k, v] of Object.entries(cur)) {
+      if (!v || v === '__global__') {
+        changed = true
+        continue
+      }
+      if (v === 'PROXY') {
+        changed = true
+        if (proxyGroups.length) next[k] = proxyGroups[0]
+        continue
+      }
+      if (valid.has(v)) next[k] = v
+      else changed = true // 毒数据：当前配置引用不了，丢弃
+    }
+    if (!changed) return
     policiesRef.current = next
     writeStore(next)
     setPolicies(next)
-    console.log('[process-proxy] MIGRATE PROXY ->', proxyGroups[0], '(silent)')
+    console.log('[process-proxy] SANITIZE policies ->', next)
     applyRules(buildRules(next), true)
-  }, [proxyGroups, applyRules])
+  }, [isProxiesPending, proxyGroups, applyRules])
 
   const setPolicy = (name: string, value: string) => {
     const next = { ...policiesRef.current }
@@ -199,7 +227,7 @@ const ProcessProxyPage = () => {
       <EnhancedCard title="进程代理 · 按程序分流" icon={<AccountTreeRounded />} iconColor="primary">
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2, pt: 2, gap: 1 }}>
           <Typography variant="body2" sx={{ opacity: 0.72 }}>
-            为每个程序单独指定走直连、拦截或某个代理组，规则按进程名生效、优先于域名规则。同名多实例已合并，点开可看每个进程。
+            为每个程序单独指定走直连、拦截，或为它选一个节点；规则按进程名生效、优先于域名规则。同名多实例已合并，点开可看每个进程。
           </Typography>
           <Tooltip title="刷新进程列表（每 12 秒自动静默刷新）">
             <IconButton size="small" onClick={() => loadProcesses(false)} disabled={loading}>
@@ -375,12 +403,25 @@ const ProcessProxyPage = () => {
                           ))}
                           {isProxiesPending ? (
                             <MenuItem disabled sx={{ fontSize: 12, opacity: 0.5 }}>
-                              加载代理组…
+                              加载节点…
                             </MenuItem>
                           ) : (
                             proxyGroups.length > 0 && [
-                              <ListSubheader key="__hdr" sx={{ fontSize: 11, lineHeight: '26px' }}>
-                                代理组
+                              <ListSubheader
+                                key="__hdr"
+                                sx={{
+                                  fontSize: 10,
+                                  fontWeight: 700,
+                                  letterSpacing: 1.4,
+                                  lineHeight: '22px',
+                                  mt: 0.5,
+                                  pt: 0.75,
+                                  borderTop: '1px solid',
+                                  borderColor: 'divider',
+                                  color: 'text.disabled',
+                                }}
+                              >
+                                {GROUP_HEADER_LABEL}
                               </ListSubheader>,
                               ...proxyGroups.map((grp) => (
                                 <MenuItem key={grp} value={grp} sx={{ fontSize: 13 }}>
