@@ -1,6 +1,6 @@
 [package]
 name = "nyxelen"
-version = "3.0.1"
+version = "3.0.2"
 description = "望仔"
 authors = ["zzzgydi", "Tunglies", "wonfen", "MystiPanda", "wlxlyxa"]
 license = "GPL-3.0-only"
