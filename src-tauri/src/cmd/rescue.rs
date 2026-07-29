@@ -13,18 +13,14 @@ pub fn launch_rescue(app: tauri::AppHandle) -> CmdResult<()> {
     let candidates = [
         app.path()
             .resolve("emergency.ps1", tauri::path::BaseDirectory::Resource),
-        app.path().resolve(
-            "resources/emergency.ps1",
-            tauri::path::BaseDirectory::Resource,
-        ),
+        app.path()
+            .resolve("resources/emergency.ps1", tauri::path::BaseDirectory::Resource),
     ];
     let ps1 = candidates
         .into_iter()
         .filter_map(|c| c.ok())
         .find(|p| p.exists())
-        .ok_or_else(|| {
-            "未找到急救脚本 emergency.ps1，请确认它已放进 src-tauri/resources/ 并重新打包".to_string()
-        })?;
+        .ok_or_else(|| "未找到急救脚本 emergency.ps1，请确认它已放进 src-tauri/resources/ 并重新打包".to_string())?;
     // Start-Process -Verb RunAs 弹 UAC 提权，以管理员跑急救脚本
     let cmd = format!(
         "Start-Process powershell -Verb RunAs -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File','{}'",

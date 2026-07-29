@@ -131,7 +131,9 @@ fn run_powershell(script: &str) -> Result<(), String> {
         .arg("-NoProfile")
         .arg("-NonInteractive")
         .arg("-Command")
-        .arg(format!("[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; {script}"))
+        .arg(format!(
+            "[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; {script}"
+        ))
         .creation_flags(CREATE_NO_WINDOW)
         .output()
         .map_err(|e| format!("调用 PowerShell 失败: {e}"))?;
@@ -146,7 +148,11 @@ fn run_powershell(script: &str) -> Result<(), String> {
         } else {
             format!(
                 "退出码 {}，通常是权限不足或命令被系统拒绝，请以管理员身份运行 Nyxelen后重试",
-                output.status.code().map(|c| c.to_string()).unwrap_or_else(|| "未知".into())
+                output
+                    .status
+                    .code()
+                    .map(|c| c.to_string())
+                    .unwrap_or_else(|| "未知".into())
             )
         };
         return Err(format!("PowerShell 执行失败: {detail}"));

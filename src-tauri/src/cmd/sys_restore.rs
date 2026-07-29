@@ -9,9 +9,7 @@ use super::CmdResult;
 pub fn open_system_restore() -> CmdResult<()> {
     std::process::Command::new("rstrui.exe")
         .spawn()
-        .map_err(|e| {
-            format!("打开系统还原向导失败: {e}（可去开始菜单搜“创建还原点”手动打开）")
-        })?;
+        .map_err(|e| format!("打开系统还原向导失败: {e}（可去开始菜单搜“创建还原点”手动打开）"))?;
     Ok(())
 }
 

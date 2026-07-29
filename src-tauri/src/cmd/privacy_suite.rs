@@ -47,18 +47,9 @@ pub fn check_teredo_protection_status() -> bool {
     #[cfg(windows)]
     {
         let off = |s: &str| s.trim().eq_ignore_ascii_case("true");
-        let t = run_ps(
-            "(netsh interface teredo show state | Out-String) -match 'disabled|禁用'",
-        )
-        .unwrap_or_default();
-        let s = run_ps(
-            "(netsh interface 6to4 show state | Out-String) -match 'disabled|禁用'",
-        )
-        .unwrap_or_default();
-        let i = run_ps(
-            "(netsh interface isatap show state | Out-String) -match 'disabled|禁用'",
-        )
-        .unwrap_or_default();
+        let t = run_ps("(netsh interface teredo show state | Out-String) -match 'disabled|禁用'").unwrap_or_default();
+        let s = run_ps("(netsh interface 6to4 show state | Out-String) -match 'disabled|禁用'").unwrap_or_default();
+        let i = run_ps("(netsh interface isatap show state | Out-String) -match 'disabled|禁用'").unwrap_or_default();
         off(&t) && off(&s) && off(&i)
     }
     #[cfg(not(windows))]

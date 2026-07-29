@@ -1,12 +1,12 @@
 pub mod autostart;
 pub mod backup;
 pub mod firewall_allow;
-pub mod privacy_ops;
 pub mod handle;
 pub mod hotkey;
 pub mod logger;
 pub mod manager;
 mod notification;
+pub mod privacy_ops;
 pub mod service;
 pub mod sysopt;
 pub mod timer;

@@ -123,10 +123,8 @@ pub fn disable_quic_protection() -> CmdResult<()> {
 
 #[tauri::command]
 pub fn check_quic_protection_status() -> CmdResult<bool> {
-    Ok(
-        read_dword_eq(Root::Hklm, CHROME_POLICY_PATH, "QuicAllowed", 0)
-            && read_dword_eq(Root::Hklm, EDGE_POLICY_PATH, "QuicAllowed", 0),
-    )
+    Ok(read_dword_eq(Root::Hklm, CHROME_POLICY_PATH, "QuicAllowed", 0)
+        && read_dword_eq(Root::Hklm, EDGE_POLICY_PATH, "QuicAllowed", 0))
 }
 
 // ===== 3. WPAD 自动代理发现关闭（HKCU，无需管理员） =====
@@ -167,12 +165,7 @@ pub fn disable_ocsp_protection() -> CmdResult<()> {
 
 #[tauri::command]
 pub fn check_ocsp_protection_status() -> CmdResult<bool> {
-    Ok(read_dword_eq(
-        Root::Hklm,
-        OCSP_PATH,
-        "DisableRootAutoUpdate",
-        1,
-    ))
+    Ok(read_dword_eq(Root::Hklm, OCSP_PATH, "DisableRootAutoUpdate", 1))
 }
 
 // ===== 5. 局域网名称解析（LLMNR / mDNS 多播）防护 =====

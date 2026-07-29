@@ -266,7 +266,7 @@ pub struct IVerge {
 
     /// 全局禁用 IPv6
     pub ipv6_block: Option<bool>,
-        /// NCSI 联网探测直连阻断
+    /// NCSI 联网探测直连阻断
     pub ncsi_protection: Option<bool>,
     /// QUIC / HTTP3 直连阻断
     pub quic_protection: Option<bool>,

@@ -1,9 +1,11 @@
 {
-  "version": "3.0.0",
+  "version": "3.0.1",
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "bundle": {
     "active": true,
-    "targets": ["nsis"],
+    "targets": [
+      "nsis"
+    ],
     "longDescription": "Nyxelen",
     "icon": [
       "icons/32x32.png",
@@ -12,13 +14,23 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "resources": ["resources"],
+    "resources": [
+      "resources"
+    ],
     "publisher": "Nyxelen",
-    "externalBin": ["sidecar/verge-mihomo", "sidecar/verge-mihomo-alpha"],
+    "externalBin": [
+      "sidecar/verge-mihomo",
+      "sidecar/verge-mihomo-alpha"
+    ],
     "copyright": "GNU General Public License v3.0 · Based on Clash Verge Rev, modified by Nyxelen",
     "category": "DeveloperTool",
     "shortDescription": "Nyxelen",
-    "createUpdaterArtifacts": true
+    "createUpdaterArtifacts": true,
+    "windows": {
+      "nsis": {
+        "installerHooks": "nsis/hooks.nsi"
+      }
+    }
   },
   "build": {
     "beforeBuildCommand": "pnpm run web:build",
@@ -29,7 +41,7 @@
   },
   "productName": "Nyxelen",
   "identifier": "io.github.wlxlyxa.wangzai",
- "plugins": {
+  "plugins": {
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEI2QzRBNjkzNTVDM0UzOTcKUldTWDQ4TlZrNmJFdHY0ZmxHQWQ3bklQY003eGZ6RjAzY2dOQWxPMDlQQkJHK0JEdndVd3ZGNWcK",
       "endpoints": [
@@ -43,17 +55,24 @@
     },
     "deep-link": {
       "desktop": {
-        "schemes": ["wangzai"]
+        "schemes": [
+          "wangzai"
+        ]
       }
     }
   },
   "app": {
     "security": {
-      "capabilities": ["desktop-capability", "migrated"],
+      "capabilities": [
+        "desktop-capability",
+        "migrated"
+      ],
       "assetProtocol": {
         "enable": true,
         "scope": {
-          "allow": ["**"],
+          "allow": [
+            "**"
+          ],
           "requireLiteralLeadingDot": false
         }
       },

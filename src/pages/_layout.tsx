@@ -34,6 +34,7 @@ import { BaseErrorBoundary } from '@/components/base'
 import { LayoutItem } from '@/components/layout/layout-item'
 import { LayoutTraffic } from '@/components/layout/layout-traffic'
 import { NoticeManager } from '@/components/layout/notice-manager'
+import { UpdateBanner } from '@/components/layout/update-banner'
 import { UpdateButton } from '@/components/layout/update-button'
 import { WindowControls } from '@/components/layout/window-controller'
 import { LicenseExpiryBadge } from '@/components/layout/license-expiry-badge'
@@ -262,6 +263,7 @@ const Layout = () => {
   return (
     <ThemeProvider theme={theme}>
       {/* 左侧底部窗口控制按钮 */}
+      <UpdateBanner />
       <NoticeManager position={verge?.notice_position} />
       <div
         style={{

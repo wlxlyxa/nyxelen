@@ -1,11 +1,11 @@
 [package]
-name = "wangzai"
-version = "3.0.0"
+name = "nyxelen"
+version = "3.0.1"
 description = "望仔"
 authors = ["zzzgydi", "Tunglies", "wonfen", "MystiPanda", "wlxlyxa"]
 license = "GPL-3.0-only"
 repository = "https://github.com/wlxlyxa/wangzai.git"
-default-run = "wangzai"
+default-run = "nyxelen"
 build = "build.rs"
 edition = "2024"
 rust-version = "1.95"

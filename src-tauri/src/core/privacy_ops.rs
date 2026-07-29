@@ -28,7 +28,9 @@ fn run_ps(_script: &str) -> Result<String, String> {
 // ===== #04 Teredo / 6to4 / ISATAP 隧道禁用 =====
 #[cfg(windows)]
 pub fn enable_teredo_protection() -> Result<(), String> {
-    run_ps("netsh interface teredo set state disabled | Out-Null; netsh interface 6to4 set state state=disabled | Out-Null; netsh interface isatap set state disabled | Out-Null")?;
+    run_ps(
+        "netsh interface teredo set state disabled | Out-Null; netsh interface 6to4 set state state=disabled | Out-Null; netsh interface isatap set state disabled | Out-Null",
+    )?;
     Ok(())
 }
 #[cfg(windows)]
@@ -44,18 +46,9 @@ pub fn check_teredo_protection_status() -> bool {
     #[cfg(windows)]
     {
         let is_off = |out: &str| out.trim().eq_ignore_ascii_case("true");
-        let t = run_ps(
-            "(netsh interface teredo show state | Out-String) -match 'disabled|禁用'",
-        )
-        .unwrap_or_default();
-        let s = run_ps(
-            "(netsh interface 6to4 show state | Out-String) -match 'disabled|禁用'",
-        )
-        .unwrap_or_default();
-        let i = run_ps(
-            "(netsh interface isatap show state | Out-String) -match 'disabled|禁用'",
-        )
-        .unwrap_or_default();
+        let t = run_ps("(netsh interface teredo show state | Out-String) -match 'disabled|禁用'").unwrap_or_default();
+        let s = run_ps("(netsh interface 6to4 show state | Out-String) -match 'disabled|禁用'").unwrap_or_default();
+        let i = run_ps("(netsh interface isatap show state | Out-String) -match 'disabled|禁用'").unwrap_or_default();
         is_off(&t) && is_off(&s) && is_off(&i)
     }
     #[cfg(not(windows))]
