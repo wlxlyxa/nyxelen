@@ -38,7 +38,7 @@ fn write_policy(policy: &BrowserPolicy) -> Result<(), String> {
     let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
     let (key, _disposition) = hklm
         .create_subkey(policy.reg_path)
-        .map_err(|e| format!("写入注册表失败（可能需要以管理员身份运行望仔）: {e}"))?;
+        .map_err(|e| format!("写入注册表失败（可能需要以管理员身份运行 Nyxelen）: {e}"))?;
     key.set_value(policy.value_name, &policy.value_data)
         .map_err(|e| format!("设置策略值失败: {e}"))?;
     Ok(())

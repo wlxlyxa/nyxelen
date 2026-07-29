@@ -1,7 +1,11 @@
 import {
+  ArrowForwardRounded,
+  CableRounded,
   DeleteForeverRounded,
+  DownloadRounded,
   TableChartRounded,
   TableRowsRounded,
+  UploadRounded,
   ViewColumnRounded,
 } from '@mui/icons-material'
 import {
@@ -12,11 +16,14 @@ import {
   IconButton,
   MenuItem,
   Tooltip,
+  Typography,
   Zoom,
+  alpha,
 } from '@mui/material'
 import { useLockFn } from 'ahooks'
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Link } from 'react-router'
 import { closeAllConnections } from 'tauri-plugin-mihomo-api'
 
 import {
@@ -179,13 +186,16 @@ const ConnectionsPage = () => {
       }}
       header={
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Box sx={{ mx: 1 }}>
-            {t('shared.labels.downloaded')}:{' '}
-            {parseTraffic(traffic?.downTotal || 0)}
-          </Box>
-          <Box sx={{ mx: 1 }}>
-            {t('shared.labels.uploaded')}: {parseTraffic(traffic?.upTotal || 0)}
-          </Box>
+          <Box sx={(theme) => { const on = (traffic?.downTotal || 0) > 0; return { display: 'inline-flex', alignItems: 'center', gap: 0.75, mx: 0.5, px: 1.25, py: 0.5, borderRadius: 2, border: `1px solid ${alpha(on ? theme.palette.success.main : theme.palette.divider, on ? 0.45 : 1)}`, background: alpha(on ? theme.palette.success.main : theme.palette.text.secondary, on ? 0.1 : 0.04), transition: 'all .3s ease', cursor: 'default', '&:hover': { transform: 'translateY(-1px)' } }; }}>
+  <DownloadRounded sx={(theme) => { const on = (traffic?.downTotal || 0) > 0; return { fontSize: 16, color: on ? theme.palette.success.main : alpha(theme.palette.text.secondary, 0.6), transition: 'color .3s ease' } }} />
+  <Typography variant="caption" sx={(theme) => ({ color: alpha(theme.palette.text.secondary, 0.7) })}>{t('shared.labels.downloaded')}</Typography>
+  <Typography sx={(theme) => { const on = (traffic?.downTotal || 0) > 0; return { fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: on ? theme.palette.success.main : theme.palette.text.primary, transition: 'color .3s ease' } }}>{parseTraffic(traffic?.downTotal || 0)}</Typography>
+</Box>
+<Box sx={(theme) => { const on = (traffic?.upTotal || 0) > 0; return { display: 'inline-flex', alignItems: 'center', gap: 0.75, mx: 0.5, px: 1.25, py: 0.5, borderRadius: 2, border: `1px solid ${alpha(on ? theme.palette.primary.main : theme.palette.divider, on ? 0.45 : 1)}`, background: alpha(on ? theme.palette.primary.main : theme.palette.text.secondary, on ? 0.1 : 0.04), transition: 'all .3s ease', cursor: 'default', '&:hover': { transform: 'translateY(-1px)' } }; }}>
+  <UploadRounded sx={(theme) => { const on = (traffic?.upTotal || 0) > 0; return { fontSize: 16, color: on ? theme.palette.primary.main : alpha(theme.palette.text.secondary, 0.6), transition: 'color .3s ease' } }} />
+  <Typography variant="caption" sx={(theme) => ({ color: alpha(theme.palette.text.secondary, 0.7) })}>{t('shared.labels.uploaded')}</Typography>
+  <Typography sx={(theme) => { const on = (traffic?.upTotal || 0) > 0; return { fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: on ? theme.palette.primary.main : theme.palette.text.primary, transition: 'color .3s ease' } }}>{parseTraffic(traffic?.upTotal || 0)}</Typography>
+</Box>
           <IconButton
             color="inherit"
             size="small"
@@ -283,7 +293,17 @@ const ConnectionsPage = () => {
       </Box>
 
       {!hasTableData ? (
-        <BaseEmpty />
+        <Box sx={{ position: 'relative', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2.5, py: 8, px: 2, overflow: 'hidden' }}>
+  <Box sx={(theme) => ({ position: 'absolute', inset: 0, background: `radial-gradient(62% 50% at 50% 36%, ${alpha(theme.palette.primary.main, 0.12)}, transparent 72%)`, pointerEvents: 'none' })} />
+  <Box sx={(theme) => ({ position: 'relative', width: 92, height: 92, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: alpha(theme.palette.primary.main, 0.08), border: `1px solid ${alpha(theme.palette.primary.main, 0.28)}`, boxShadow: `0 0 0 10px ${alpha(theme.palette.primary.main, 0.04)}`, color: theme.palette.primary.main, '@keyframes connPulse': { '0%, 100%': { transform: 'scale(1)', opacity: 1 }, '50%': { transform: 'scale(1.05)', opacity: 0.8 } }, animation: 'connPulse 2.6s ease-in-out infinite', transition: 'transform .2s ease', '&:hover': { transform: 'scale(1.07)' } })}>
+    <CableRounded sx={{ fontSize: 42 }} />
+  </Box>
+  <Box sx={{ position: 'relative', zIndex: 1, textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 1, alignItems: 'center' }}>
+    <Typography sx={(theme) => ({ fontSize: '1.45rem', fontWeight: 800, letterSpacing: -0.5, color: theme.palette.text.primary })}>当前没有活动连接</Typography>
+    <Typography variant="body2" sx={(theme) => ({ maxWidth: 400, lineHeight: 1.85, color: alpha(theme.palette.text.secondary, 0.85) })}>开启系统代理或虚拟网卡后，这里会实时列出每条连接的去向、延迟与流量，帮你看清流量究竟去了哪里。</Typography>
+  </Box>
+  <Button component={Link} to="/" variant="contained" color="primary" size="small" endIcon={<ArrowForwardRounded />} sx={(theme) => ({ position: 'relative', zIndex: 1, mt: 0.5, borderRadius: 2, px: 2.5, fontWeight: 700, transition: 'transform .15s ease, box-shadow .2s ease', '&:hover': { transform: 'translateY(-1px)', boxShadow: `0 6px 18px ${alpha(theme.palette.primary.main, 0.4)}` }, '& .MuiButton-endIcon': { transition: 'transform .2s ease' }, '&:hover .MuiButton-endIcon': { transform: 'translateX(3px)' } })}>去防护态势开启代理</Button>
+</Box>
       ) : isTableLayout ? (
         <ConnectionTable
           connections={filterConn}

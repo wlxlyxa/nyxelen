@@ -357,16 +357,17 @@ const UnlockPage = () => {
       }
     >
       {unlockItems.length === 0 ? (
-        <Box
-          sx={{
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            height: '50%',
-          }}
-        >
-          <BaseEmpty textKey="tests.unlock.page.empty" />
-        </Box>
+        <Box sx={(theme) => ({ position: 'relative', minHeight: 0, height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2.5, py: 8, px: 2, overflow: 'hidden' })}>
+  <Box sx={(theme) => ({ position: 'absolute', inset: 0, background: `radial-gradient(62% 50% at 50% 36%, ${alpha(theme.palette.primary.main, 0.12)}, transparent 72%)`, pointerEvents: 'none' })} />
+  <Box sx={(theme) => ({ position: 'relative', width: 92, height: 92, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: alpha(theme.palette.primary.main, 0.08), border: `1px solid ${alpha(theme.palette.primary.main, 0.28)}`, boxShadow: `0 0 0 10px ${alpha(theme.palette.primary.main, 0.04)}`, color: theme.palette.primary.main, '@keyframes unlockPulse': { '0%, 100%': { transform: 'scale(1)', opacity: 1 }, '50%': { transform: 'scale(1.05)', opacity: 0.8 } }, animation: 'unlockPulse 2.6s ease-in-out infinite' })}>
+    <HelpOutlined sx={{ fontSize: 42 }} />
+  </Box>
+  <Box sx={{ position: 'relative', zIndex: 1, textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 1, alignItems: 'center' }}>
+    <Typography sx={{ fontSize: '1.45rem', fontWeight: 800, letterSpacing: -0.5, color: 'text.primary' }}>还没检测过解锁情况</Typography>
+    <Typography variant="body2" sx={(theme) => ({ maxWidth: 420, lineHeight: 1.85, color: alpha(theme.palette.text.secondary, 0.85) })}>点一下检测，看看你的节点能解锁哪些流媒体——Netflix、Disney+、YouTube Premium 等的地区限制，一目了然。</Typography>
+  </Box>
+  <Button variant="contained" color="primary" size="small" startIcon={<RefreshRounded />} onClick={() => checkAllMedia()} disabled={isCheckingAll} sx={(theme) => ({ position: 'relative', zIndex: 1, mt: 0.5, borderRadius: 2, px: 2.5, fontWeight: 700, textTransform: 'none', transition: 'transform .15s ease, box-shadow .2s ease', '&:hover': { transform: 'translateY(-1px)', boxShadow: `0 6px 18px ${alpha(theme.palette.primary.main, 0.4)}` } })}>{isCheckingAll ? t('tests.unlock.page.actions.testing') : t('tests.page.actions.testAll')}</Button>
+</Box>
       ) : (
         <Grid container spacing={1.5} columns={{ xs: 1, sm: 2, md: 3 }}>
           {unlockItems.map((item) => (
@@ -377,7 +378,7 @@ const UnlockPage = () => {
                   height: '100%',
                   borderRadius: 2,
                   borderLeft: `4px solid ${getStatusBorderColor(item.status)}`,
-                  backgroundColor: isDark ? '#282a36' : '#ffffff',
+                  backgroundColor: 'background.paper',
                   position: 'relative',
                   overflow: 'hidden',
                   '&:hover': {

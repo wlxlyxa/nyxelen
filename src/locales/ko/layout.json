@@ -3,13 +3,13 @@
     "navigation": {
       "tabs": {
         "home": "보호",
-        "proxies": "프록시",
-        "profiles": "프로필",
-        "connections": "연결",
-        "rules": "규칙",
-        "logs": "로그",
-        "unlock": "테스트",
-        "settings": "설정"
+        "proxies": "구독 프록시",
+        "profiles": "구독 가져오기",
+        "connections": "연결 상태",
+        "rules": "규칙 관리",
+        "logs": "로그 검사",
+        "unlock": "해제 테스트",
+        "settings": "고급 설정"
       },
       "menu": {
         "reorderMode": "메뉴 재정렬 모드",

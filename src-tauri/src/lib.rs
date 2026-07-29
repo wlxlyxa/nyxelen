@@ -367,7 +367,7 @@ pub fn run() {
 
             #[cfg(target_os = "macos")]
             if let Some(window) = _app_handle.get_webview_window("main") {
-                let _ = window.set_title("望仔");
+                let _ = window.set_title("Nyxelen");
             }
         }
 

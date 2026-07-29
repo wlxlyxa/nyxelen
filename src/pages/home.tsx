@@ -1,10 +1,13 @@
 import {
+  WarningAmberRounded,
+  InfoOutlined,
   BoltOutlined,
   HealingOutlined,
   HistoryEduOutlined,
   HistoryOutlined,
   RefreshOutlined,
   ShieldOutlined,
+  SpeedOutlined,
 } from '@mui/icons-material'
 import {
   Box,
@@ -17,6 +20,7 @@ import {
   Tooltip,
   Typography,
   alpha,
+  Switch,
 } from '@mui/material'
 import { invoke } from '@tauri-apps/api/core'
 import { useCallback, useEffect, useState } from 'react'
@@ -25,10 +29,11 @@ import { CurrentProxyCard } from '@/components/home/current-proxy-card'
 import { EnhancedCard } from '@/components/home/enhanced-card'
 import { IpInfoCard } from '@/components/home/ip-info-card'
 import { ProxyTunCard } from '@/components/home/proxy-tun-card'
-import { TestCard } from '@/components/home/test-card'
+import { EnhancedTrafficStats } from '@/components/home/enhanced-traffic-stats'
 import { useVerge } from '@/hooks/use-verge'
 import { entry_lightweight_mode } from '@/services/cmds'
 import { showNotice } from '@/services/notice-service'
+import { leakStatusCache } from '@/services/leak-status-cache'
 
 const SAFE_LEAK_ITEMS = [
   { key: 'wpad', label: 'WPAD 自动代理发现', en: 'enable_wpad_protection', dis: 'disable_wpad_protection', ck: 'wpad_protection', check: 'check_wpad_protection_status' },
@@ -40,48 +45,59 @@ const SUITE_ITEMS = [
   { key: 'teredo', label: 'IPv6 隧道封装', en: 'enable_teredo_protection', dis: 'disable_teredo_protection' },
   { key: 'bcast', label: '局域网广播族', en: 'enable_broadcast_protection', dis: 'disable_broadcast_protection' },
 ] as const
-const TOTAL = SAFE_LEAK_ITEMS.length + SUITE_ITEMS.length + 3
+const RISKY_ITEMS = [
+  { key: 'ncsi', label: 'NCSI 直连阻断', en: 'enable_ncsi_protection', dis: 'disable_ncsi_protection', ck: 'ncsi_protection', check: 'check_ncsi_protection_status', tip: '阻止 Windows 联网探测直连微软，避免定期泄露真实公网 IP。副作用：任务栏网络图标可能偶显“无 Internet”。' },
+  { key: 'quic', label: 'QUIC / HTTP3 阻断', en: 'enable_quic_protection', dis: 'disable_quic_protection', ck: 'quic_protection', check: 'check_quic_protection_status', tip: '禁止浏览器走 UDP 直连，堵住“TCP 走代理、UDP 偷偷直连”的 IP 泄漏。副作用：极少数纯 QUIC 站点可能变慢。' },
+] as const
+const ALL_LEAK_ITEMS = [...SAFE_LEAK_ITEMS, ...RISKY_ITEMS]
+const CHANNELS: { key: string; label: string; tip: string }[] = [
+  { key: 'wpad', label: 'WPAD 自动代理发现', tip: '关闭“自动检测代理设置”，避免向内网广播主机名、与手动代理冲突。一般无副作用。' },
+  { key: 'ocsp', label: '在线证书检查', tip: '禁止系统在线校验证书吊销 / 自动更新根证书，避免直连 CA 泄露访问记录与真实 IP。副作用：个别企业 / 银行站点可能弹证书警告。' },
+  { key: 'llmnr', label: '局域网名称解析', tip: '关闭 LLMNR / mDNS 多播解析，避免向局域网广播主机名与查询内容。副作用：局域网设备名解析可能受影响。' },
+  { key: 'dns', label: 'DNS 缓存', tip: '开启时立即清空系统 DNS 缓存，消除“切换节点后旧直连解析残留”造成的泄漏窗口。' },
+  { key: 'ncsi', label: 'NCSI 直连阻断', tip: '阻止 Windows 联网探测直连微软，避免定期泄露真实公网 IP。副作用：任务栏网络图标可能偶显“无 Internet”。' },
+  { key: 'quic', label: 'QUIC / HTTP3 阻断', tip: '禁止浏览器走 UDP 直连，堵住“TCP 走代理、UDP 偷偷直连”的 IP 泄漏。副作用：极少数纯 QUIC 站点可能变慢。' },
+  { key: 'teredo', label: 'IPv6 隧道封装', tip: '关闭 Teredo / 6to4 等 IPv6 隧道，防止流量绕过代理从 IPv6 隧道泄露。副作用：一般无感知。' },
+  { key: 'bcast', label: '局域网广播族', tip: '关闭局域网广播类协议，避免向局域网广播主机信息。副作用：局域网设备发现可能受影响。' },
+  { key: 'webrtc', label: 'WebRTC / DNS', tip: '阻止浏览器经 WebRTC 泄露真实内网 / 公网 IP，并强制 DNS 走代理（含 DoH 阻断）。副作用：极少数依赖 WebRTC 直连的 P2P 应用（如部分视频会议）可能受影响。' },
+  { key: 'smhnr', label: 'SMHNR 名称解析', tip: '启用智能多宿主名称解析防护，避免 Windows 多网卡并行解析时从非代理网卡泄露真实 IP。副作用：一般无感知。' },
+  { key: 'ipv6', label: 'IPv6 防泄漏', tip: '阻断 IPv6 直连通道，防止流量绕过代理从 IPv6 出口泄露真实 IP。副作用：纯 IPv6 站点可能无法访问（国内极少）。' },
+]
+const TOTAL = SAFE_LEAK_ITEMS.length + SUITE_ITEMS.length + RISKY_ITEMS.length + 3
 const delay = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))
 
 const HomePage = () => {
   const { verge, patchVerge } = useVerge()
-  const [leak, setLeak] = useState<Record<string, boolean>>({ wpad: false, ocsp: false, llmnr: false, dns: false })
-  const [suite, setSuite] = useState<{ teredo: boolean; bcast: boolean }>({ teredo: false, bcast: false })
-  const [ipv6Block, setIpv6Block] = useState(false)
+  const [leak, setLeak] = useState<Record<string, boolean>>(() => ({ wpad: leakStatusCache.leak.wpad, ocsp: leakStatusCache.leak.ocsp, llmnr: leakStatusCache.leak.llmnr, dns: leakStatusCache.leak.dns }))
+  const [suite, setSuite] = useState<{ teredo: boolean; bcast: boolean }>(() => ({ teredo: leakStatusCache.suite.teredo, bcast: leakStatusCache.suite.bcast }))
+  const [risky, setRisky] = useState<Record<string, boolean>>(() => ({ ncsi: leakStatusCache.leak.ncsi, quic: leakStatusCache.leak.quic }))
+  const [ipv6Block, setIpv6Block] = useState<boolean>(() => leakStatusCache.ipv6)
+  useEffect(() => { leakStatusCache.leak.wpad = leak.wpad; leakStatusCache.leak.ocsp = leak.ocsp; leakStatusCache.leak.llmnr = leak.llmnr; leakStatusCache.leak.dns = leak.dns }, [leak])
+  useEffect(() => { leakStatusCache.suite.teredo = suite.teredo; leakStatusCache.suite.bcast = suite.bcast }, [suite])
+  useEffect(() => { leakStatusCache.leak.ncsi = risky.ncsi; leakStatusCache.leak.quic = risky.quic }, [risky])
+  useEffect(() => { leakStatusCache.ipv6 = ipv6Block }, [ipv6Block])
   const [busy, setBusy] = useState(false)
   const [progress, setProgress] = useState(0)
-  const [refreshing, setRefreshing] = useState(false)
 
-  const refreshAll = useCallback(async () => {
-    const leakResults = await Promise.all(
-      SAFE_LEAK_ITEMS.map(({ check }) => invoke<boolean>(check).catch(() => false)),
-    )
-    const leakNext: Record<string, boolean> = {}
-    SAFE_LEAK_ITEMS.forEach(({ key }, i) => {
-      leakNext[key] = leakResults[i]
+  const refreshStatus = useCallback(() => {
+    SAFE_LEAK_ITEMS.forEach(({ key, check }) => {
+      invoke<boolean>(check).then((v) => setLeak((s) => ({ ...s, [key]: v }))).catch(() => {})
     })
-    setLeak(leakNext)
-    const [suiteR, ipv6R] = await Promise.all([
-      invoke<{ teredo: boolean; bcast: boolean }>('check_privacy_suite_status').catch(() => ({ teredo: false, bcast: false })),
-      invoke<boolean>('check_ipv6_block_status').catch(() => false),
-    ])
-    setSuite(suiteR)
-    setIpv6Block(ipv6R)
+    RISKY_ITEMS.forEach(({ key, check }) => {
+      invoke<boolean>(check).then((v) => setRisky((s) => ({ ...s, [key]: v }))).catch(() => {})
+    })
+    invoke<{ teredo: boolean; bcast: boolean }>('check_privacy_suite_status')
+      .then((r) => setSuite({ teredo: r.teredo, bcast: r.bcast }))
+      .catch(() => {})
+    invoke<boolean>('check_ipv6_block_status').then(setIpv6Block).catch(() => {})
   }, [])
-
   useEffect(() => {
-    void refreshAll()
-  }, [refreshAll])
-
-  const onRefresh = async () => {
-    if (refreshing) return
-    setRefreshing(true)
-    await refreshAll()
-    setRefreshing(false)
-  }
+    refreshStatus()
+  }, [refreshStatus])
 
   const openedCount =
     SAFE_LEAK_ITEMS.filter(({ key }) => leak[key]).length +
+    RISKY_ITEMS.filter(({ key }) => risky[key]).length +
     SUITE_ITEMS.filter(({ key }) => suite[key]).length +
     (verge?.webrtc_leak_protection ? 1 : 0) +
     (verge?.smhnr_enabled ? 1 : 0) +
@@ -89,6 +105,7 @@ const HomePage = () => {
   const allOn = openedCount === TOTAL
   const missing: string[] = []
   SAFE_LEAK_ITEMS.forEach(({ key, label }) => { if (!leak[key]) missing.push(label) })
+  RISKY_ITEMS.forEach(({ key, label }) => { if (!risky[key]) missing.push(label) })
   SUITE_ITEMS.forEach(({ key, label }) => { if (!suite[key]) missing.push(label) })
   if (!verge?.webrtc_leak_protection) missing.push('WebRTC / DNS')
   if (!verge?.smhnr_enabled) missing.push('SMHNR 名称解析')
@@ -98,17 +115,80 @@ const HomePage = () => {
   const levelText =
     level === 'safe' ? '防护中 · 真实 IP 已守住' : level === 'risk' ? '未防护 · 真实 IP 正在暴露' : '部分防护 · 仍有泄漏通道'
 
+
+  const channelOn = (key: string): boolean => {
+    if (key === 'webrtc') return !!verge?.webrtc_leak_protection
+    if (key === 'smhnr') return !!verge?.smhnr_enabled
+    if (key === 'ipv6') return ipv6Block
+    if (key === 'teredo') return suite.teredo
+    if (key === 'bcast') return suite.bcast
+    if (key === 'ncsi' || key === 'quic') return risky[key] ?? false
+    return leak[key] ?? false
+  }
+
+  const toggleChannel = (key: string, c: boolean) => {
+    const safe = SAFE_LEAK_ITEMS.find((x) => x.key === key)
+    if (safe) {
+      setLeak((st) => ({ ...st, [key]: c }))
+      patchVerge({ [safe.ck]: c })
+      void invoke(c ? safe.en : safe.dis).catch((err) => {
+        setLeak((st) => ({ ...st, [key]: !c }))
+        showNotice.error(typeof err === 'string' ? err : '设置失败，可能需要管理员身份')
+      })
+      return
+    }
+    const rk = RISKY_ITEMS.find((x) => x.key === key)
+    if (rk) { toggleRisky(rk.key, rk.en, rk.dis, rk.ck)(c); return }
+    const su = SUITE_ITEMS.find((x) => x.key === key)
+    if (su) {
+      setSuite((st) => ({ ...st, [key]: c }))
+      void invoke(c ? su.en : su.dis).catch((err) => {
+        setSuite((st) => ({ ...st, [key]: !c }))
+        showNotice.error(typeof err === 'string' ? err : '设置失败，可能需要管理员身份')
+      })
+      return
+    }
+    if (key === 'webrtc') {
+      patchVerge({ webrtc_leak_protection: c })
+      void Promise.allSettled([
+        invoke(c ? 'enable_webrtc_control' : 'disable_webrtc_control'),
+        invoke(c ? 'enable_doh_block' : 'disable_doh_block'),
+      ]).then((results) => {
+        if (results.some((r) => r.status === 'rejected')) {
+          patchVerge({ webrtc_leak_protection: !c })
+          showNotice.error('设置失败，可能需要管理员身份')
+        }
+      })
+      return
+    }
+    if (key === 'smhnr') {
+      patchVerge({ smhnr_enabled: c })
+      void invoke(c ? 'enable_smhnr_protection' : 'disable_smhnr_protection').catch(() => {
+        patchVerge({ smhnr_enabled: !c })
+        showNotice.error('设置失败，可能需要管理员身份')
+      })
+      return
+    }
+    if (key === 'ipv6') {
+      setIpv6Block(c)
+      void invoke(c ? 'enable_ipv6_block' : 'disable_ipv6_block').catch(() => {})
+      return
+    }
+  }
+
   const onToggleAll = async () => {
     if (busy) return
     const targetOn = !allOn
     setBusy(true)
     setProgress(0)
     let done = 0
+    let webrtcFinal = verge?.webrtc_leak_protection ?? false
+    let smhnrFinal = verge?.smhnr_enabled ?? false
     const step = async (fn: () => Promise<void>) => {
       try {
         await fn()
       } catch {
-        /* 单项失败不中断整体 */
+        /* 单项失败不中断整体；结尾用系统真值校准，不在此判成败 */
       }
       done += 1
       setProgress(done)
@@ -118,37 +198,90 @@ const HomePage = () => {
       await step(async () => {
         setLeak((s) => ({ ...s, [key]: targetOn }))
         patchVerge({ [ck]: targetOn })
-        await invoke(targetOn ? en : dis)
+        await invoke(targetOn ? en : dis).catch(() => {})
+      })
+    }
+    for (const { key, en, dis, ck } of RISKY_ITEMS) {
+      await step(async () => {
+        setRisky((s) => ({ ...s, [key]: targetOn }))
+        patchVerge({ [ck]: targetOn })
+        await invoke(targetOn ? en : dis).catch(() => {})
       })
     }
     for (const { key, en, dis } of SUITE_ITEMS) {
       await step(async () => {
         setSuite((s) => ({ ...s, [key]: targetOn }))
-        await invoke(targetOn ? en : dis)
+        await invoke(targetOn ? en : dis).catch(() => {})
       })
     }
     await step(async () => {
       patchVerge({ webrtc_leak_protection: targetOn })
-      await Promise.allSettled([
+      webrtcFinal = targetOn
+      const results = await Promise.allSettled([
         invoke(targetOn ? 'enable_webrtc_control' : 'disable_webrtc_control'),
         invoke(targetOn ? 'enable_doh_block' : 'disable_doh_block'),
       ])
+      if (results.some((r) => r.status === 'rejected')) {
+        patchVerge({ webrtc_leak_protection: !targetOn })
+        webrtcFinal = !targetOn
+      }
     })
     await step(async () => {
       patchVerge({ smhnr_enabled: targetOn })
-      await invoke(targetOn ? 'enable_smhnr_protection' : 'disable_smhnr_protection')
+      smhnrFinal = targetOn
+      await invoke(targetOn ? 'enable_smhnr_protection' : 'disable_smhnr_protection').catch(() => {
+        patchVerge({ smhnr_enabled: !targetOn })
+        smhnrFinal = !targetOn
+      })
     })
     await step(async () => {
       setIpv6Block(targetOn)
-      await invoke(targetOn ? 'enable_ipv6_block' : 'disable_ipv6_block')
+      await invoke(targetOn ? 'enable_ipv6_block' : 'disable_ipv6_block').catch(() => {})
     })
+    // 等系统落盘，再读系统真值校准显示与提示（不再信任命令返回值）
+    await delay(1200)
+    const leakChecks = await Promise.all(
+      ALL_LEAK_ITEMS.map(({ check }) => invoke<boolean>(check).catch(() => false)),
+    )
+    const realLeak: Record<string, boolean> = {}
+    ALL_LEAK_ITEMS.forEach(({ key }, i) => { realLeak[key] = leakChecks[i] })
+    setLeak((s) => ({ ...s, wpad: realLeak.wpad, ocsp: realLeak.ocsp, llmnr: realLeak.llmnr, dns: realLeak.dns }))
+    setRisky((s) => ({ ...s, ncsi: realLeak.ncsi, quic: realLeak.quic }))
+    const suiteVal = await invoke<{ teredo: boolean; bcast: boolean }>('check_privacy_suite_status').catch(() => ({ teredo: false, bcast: false }))
+    setSuite({ teredo: suiteVal.teredo, bcast: suiteVal.bcast })
+    const ipv6Val = await invoke<boolean>('check_ipv6_block_status').catch(() => false)
+    setIpv6Block(ipv6Val)
+    const realOn =
+      SAFE_LEAK_ITEMS.filter(({ key }) => realLeak[key]).length +
+      RISKY_ITEMS.filter(({ key }) => realLeak[key]).length +
+      (suiteVal.teredo ? 1 : 0) +
+      (suiteVal.bcast ? 1 : 0) +
+      (webrtcFinal ? 1 : 0) +
+      (smhnrFinal ? 1 : 0) +
+      (ipv6Val ? 1 : 0)
     setBusy(false)
-    showNotice.success(targetOn ? `已一键开启 ${TOTAL} 项常规防护` : `已一键关闭 ${TOTAL} 项常规防护`)
+    const ok = targetOn ? realOn === TOTAL : realOn === 0
+    if (ok) {
+      showNotice.success(targetOn ? `已一键开启 ${TOTAL} 项常规防护` : `已一键关闭 ${TOTAL} 项常规防护`)
+    } else if (targetOn) {
+      showNotice.error(`已处理，但仅 ${realOn}/${TOTAL} 项生效——未生效项可能需要管理员权限，或系统尚未刷新，可稍后点右上角刷新确认`)
+    } else {
+      showNotice.error(`已处理，但仍有 ${realOn} 项处于开启——可稍后点右上角刷新确认，或检查管理员权限`)
+    }
+  }
+
+  const toggleRisky = (key: string, en: string, dis: string, ck: string) => (c: boolean) => {
+    setRisky((s) => ({ ...s, [key]: c }))
+    patchVerge({ [ck]: c })
+    void invoke(c ? en : dis).catch((err) => {
+      setRisky((s) => ({ ...s, [key]: !c }))
+      showNotice.error(typeof err === 'string' ? err : '设置失败，可能需要管理员身份')
+    })
   }
 
   const onRescueStep1 = async () => {
     const ok = window.confirm(
-      '【断网急救 · 第①步：应用内急救】\n用当前权限修复：清望仔规则 + 清系统代理 + 恢复 IPv6 + 清 DNS + 重启网卡 + 重置协议栈，不弹管理员框。\n若仍未恢复，请接着点『② 提权急救』。\n确定继续？',
+      '【断网急救 · 第①步：应用内急救】\n用当前权限修复：清代理规则 + 清系统代理 + 恢复 IPv6 + 清 DNS + 重启网卡 + 重置协议栈，不弹管理员框。\n若仍未恢复，请接着点『② 提权急救』。\n确定继续？',
     )
     if (!ok) return
     try {
@@ -192,17 +325,8 @@ const HomePage = () => {
       contentStyle={{ padding: 2 }}
       header={
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-          <Tooltip title="重新检测防护状态" arrow>
-            <IconButton
-              onClick={onRefresh}
-              disabled={refreshing}
-              size="small"
-              color="inherit"
-              sx={{
-                '@keyframes spin': { from: { transform: 'rotate(0deg)' }, to: { transform: 'rotate(360deg)' } },
-                animation: refreshing ? 'spin 0.9s linear infinite' : 'none',
-              }}
-            >
+          <Tooltip title="刷新防护状态" arrow>
+            <IconButton onClick={refreshStatus} size="small" color="inherit">
               <RefreshOutlined />
             </IconButton>
           </Tooltip>
@@ -292,33 +416,65 @@ const HomePage = () => {
                 </Button>
               </Box>
               {busy && <LinearProgress variant="determinate" value={(progress / TOTAL) * 100} color={levelColor} sx={{ borderRadius: 1, height: 8 }} />}
-              {!busy && missing.length > 0 && (
+              {!busy && (
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, alignItems: 'center' }}>
-                  <Typography variant="caption" sx={{ opacity: 0.6 }}>未防护通道：</Typography>
-                  {missing.map((m) => (
-                    <Chip
-                      key={m}
-                      label={m}
-                      size="small"
-                      color="error"
-                      variant="outlined"
-                      sx={(theme) => ({
-                        transition: 'background-color .2s ease, transform .15s ease',
-                        '&:hover': { backgroundColor: alpha(theme.palette.error.main, 0.12), transform: 'translateY(-1px)' },
-                      })}
-                    />
-                  ))}
+                  <Typography variant="caption" sx={{ opacity: 0.6 }}>防护通道 · 点击切换：</Typography>
+                  {CHANNELS.map(({ key, label, tip }) => {
+                    const on = channelOn(key)
+                    return (
+                      <Tooltip key={key} title={tip} arrow>
+                        <Chip
+                          label={label}
+                          size="small"
+                          onClick={() => toggleChannel(key, !on)}
+                          sx={(theme) => ({
+                            cursor: 'pointer',
+                            fontWeight: on ? 700 : 500,
+                            color: on ? theme.palette.success.main : theme.palette.error.main,
+                            backgroundColor: on ? alpha(theme.palette.success.main, 0.12) : 'transparent',
+                            border: `1px solid ${on ? alpha(theme.palette.success.main, 0.5) : alpha(theme.palette.error.main, 0.5)}`,
+                            transition: 'all .18s ease',
+                            '&:hover': {
+                              backgroundColor: on ? alpha(theme.palette.success.main, 0.22) : alpha(theme.palette.error.main, 0.12),
+                              transform: 'translateY(-1px)',
+                            },
+                            '&:active': { transform: 'scale(0.94)' },
+                          })}
+                        />
+                      </Tooltip>
+                    )
+                  })}
                 </Box>
               )}
-              {!busy && missing.length === 0 && (
-                <Typography variant="caption" sx={(theme) => ({ color: theme.palette.success.main, fontWeight: 600 })}>
-                  所有常规防护已开启 · DNS / WebRTC / IPv6 / 系统暗管均已堵死
-                </Typography>
-              )}
-              <Box sx={{ pt: 1, borderTop: 1, borderColor: 'divider' }}>
-                <Typography variant="caption" sx={{ opacity: 0.7 }}>
-                  基础：TUN {verge?.enable_tun_mode ? '开' : '关'} ｜ 系统代理 {verge?.enable_system_proxy ? '开' : '关'}
-                </Typography>
+              <Box sx={{ pt: 1.5, mt: 0.5, borderTop: 1, borderColor: 'divider', display: 'flex', gap: 2.5, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+                <Box sx={{ flex: '1 1 320px', minWidth: 280 }}>
+                  <ProxyTunCard />
+                </Box>
+                <Box sx={{ flex: '1 1 240px', minWidth: 220 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, pb: 1, mb: 1, borderBottom: 1, borderColor: 'divider' }}>
+                    <Box sx={(theme) => ({ display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 1.25, width: 32, height: 32, flexShrink: 0, backgroundColor: alpha(theme.palette.warning.main, 0.12), color: theme.palette.warning.main })}>
+                      <WarningAmberRounded sx={{ fontSize: 18 }} />
+                    </Box>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', minWidth: 0, gap: 0.25 }}>
+                      <Typography variant="h6" sx={{ fontWeight: 'medium', fontSize: 16, color: 'text.primary' }}>可能影响联网 · 已纳入一键</Typography>
+                      <Typography variant="caption" sx={{ fontSize: 11, opacity: 0.62, lineHeight: 1.2, textAlign: 'center' }}>（如不需要请自行关闭）</Typography>
+                    </Box>
+                  </Box>
+                  <Box sx={(theme) => ({ p: 1, borderRadius: 2, bgcolor: alpha(theme.palette.warning.main, 0.05) })}>
+                  {RISKY_ITEMS.map(({ key, label, tip, en, dis, ck }) => (
+                    <Box key={key} sx={(theme) => ({ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, py: 0.75, px: 1, borderRadius: 1.5, transition: 'background-color .2s ease', cursor: 'default', '&:hover': { backgroundColor: alpha(theme.palette.warning.main, 0.08) } })}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 0 }}>
+                        <Typography variant="body2" sx={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</Typography>
+                        <Tooltip title={tip} arrow>
+                          <InfoOutlined sx={(theme) => ({ fontSize: 15, color: alpha(theme.palette.text.secondary, 0.5), cursor: 'help', flexShrink: 0, transition: 'color .2s ease', '&:hover': { color: theme.palette.warning.main } })} />
+                        </Tooltip>
+                      </Box>
+                      <Switch size="small" checked={risky[key] ?? false} onChange={(_, c) => toggleRisky(key, en, dis, ck)(c)} />
+                    </Box>
+                  ))}
+                  
+                  </Box>
+                </Box>
               </Box>
             </Box>
           </EnhancedCard>
@@ -355,13 +511,10 @@ const HomePage = () => {
         <Grid size={6}>
           <IpInfoCard />
         </Grid>
-        <Grid size={6}>
-          <EnhancedCard title="代理与 TUN" icon={<ShieldOutlined />} iconColor="info">
-            <ProxyTunCard />
+        <Grid size={12}>
+          <EnhancedCard title="流量统计" icon={<SpeedOutlined />} iconColor="info">
+            <EnhancedTrafficStats />
           </EnhancedCard>
-        </Grid>
-        <Grid size={6}>
-          <TestCard />
         </Grid>
       </Grid>
     </BasePage>

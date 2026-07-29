@@ -29,7 +29,7 @@ const SettingRescue = () => {
       </SettingItem>
       <SettingItem label="">
         <div style={{ fontSize: 12, opacity: 0.5, textAlign: 'left', lineHeight: 1.6 }}>
-          接上一步：①没修好时点这个（会弹管理员框，权限最全）。若望仔彻底打不开，去安装目录双击“望仔急救.bat”。
+          接上一步：①没修好时点这个（会弹管理员框，权限最全）。若 Nyxelen 彻底打不开，去安装目录双击“Nyxelen急救.bat”。
         </div>
       </SettingItem>
     </SettingList>

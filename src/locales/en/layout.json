@@ -3,13 +3,13 @@
     "navigation": {
       "tabs": {
         "home": "Protection",
-        "proxies": "Proxies",
-        "profiles": "Profiles",
-        "connections": "Connections",
-        "rules": "Rules",
-        "logs": "Logs",
-        "unlock": "Test",
-        "settings": "Settings"
+        "proxies": "Subscriptions",
+        "profiles": "Import Subs",
+        "connections": "Connection Status",
+        "rules": "Rule Manager",
+        "logs": "Log Monitor",
+        "unlock": "Unlock Test",
+        "settings": "Advanced"
       },
       "menu": {
         "reorderMode": "Menu reorder mode",

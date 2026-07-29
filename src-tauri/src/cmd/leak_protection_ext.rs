@@ -25,7 +25,7 @@ fn write_dword(r: Root, path: &str, name: &str, val: u32) -> Result<(), String> 
     let root = predef(r);
     let (key, _disposition) = root
         .create_subkey(path)
-        .map_err(|e| format!("写入注册表失败（可能需要以管理员身份运行望仔）: {e}"))?;
+        .map_err(|e| format!("写入注册表失败（可能需要以管理员身份运行 Nyxelen）: {e}"))?;
     key.set_value(name, &val)
         .map_err(|e| format!("设置注册表值失败: {e}"))?;
     Ok(())

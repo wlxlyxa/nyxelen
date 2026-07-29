@@ -128,14 +128,28 @@ fn run_powershell(script: &str) -> Result<(), String> {
     const CREATE_NO_WINDOW: u32 = 0x08000000;
 
     let output = Command::new("powershell")
-        .args(["-NoProfile", "-NonInteractive", "-Command", script])
+        .arg("-NoProfile")
+        .arg("-NonInteractive")
+        .arg("-Command")
+        .arg(format!("[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; {script}"))
         .creation_flags(CREATE_NO_WINDOW)
         .output()
         .map_err(|e| format!("调用 PowerShell 失败: {e}"))?;
 
     if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("PowerShell 执行失败: {stderr}"));
+        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        let detail = if !stderr.is_empty() {
+            stderr
+        } else if !stdout.is_empty() {
+            stdout
+        } else {
+            format!(
+                "退出码 {}，通常是权限不足或命令被系统拒绝，请以管理员身份运行 Nyxelen后重试",
+                output.status.code().map(|c| c.to_string()).unwrap_or_else(|| "未知".into())
+            )
+        };
+        return Err(format!("PowerShell 执行失败: {detail}"));
     }
     Ok(())
 }

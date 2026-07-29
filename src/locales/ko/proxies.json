@@ -58,7 +58,7 @@
       "directMode": "직접 모드"
     },
     "title": {
-      "default": "프록시 그룹",
+      "default": "노드 전환",
       "chainMode": "프록시 체인 모드"
     }
   },

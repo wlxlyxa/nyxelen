@@ -324,7 +324,7 @@ impl Tray {
         );
 
         let tooltip = format!(
-            "望仔 {}\n{}: {}\n{}: {}\n{}: {}",
+            "Nyxelen {}\n{}: {}\n{}: {}\n{}: {}",
             reassembled_version,
             sys_proxy_text,
             switch_str(system_proxy),

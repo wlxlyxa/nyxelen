@@ -1,6 +1,6 @@
 {
-  "name": "clash-verge",
-  "version": "2.7.4",
+  "name": "nyxelen",
+  "version": "3.0.0",
   "license": "GPL-3.0-only",
   "scripts": {
     "prepare": "husky || true",
@@ -113,7 +113,9 @@
     "husky": "^9.1.7",
     "jiti": "^2.7.0",
     "lint-staged": "^17.0.5",
+    "png-to-ico": "^3.0.2",
     "sass": "^1.100.0",
+    "sharp": "^0.35.3",
     "tar": "^7.5.15",
     "terser": "^5.48.0",
     "typescript": "^6.0.3",

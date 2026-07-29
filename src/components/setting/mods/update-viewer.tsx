@@ -229,7 +229,7 @@ export function UpdateViewer({ ref }: { ref?: Ref<DialogRef> }) {
             sx={{ whiteSpace: 'nowrap' }}
             onClick={() => {
               openUrl(
-                `https://20210221.xyz`,
+                `https://nyxelen.com`,
               )
             }}
           >

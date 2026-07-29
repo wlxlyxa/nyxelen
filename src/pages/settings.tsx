@@ -1,11 +1,8 @@
-import { Box, Grid } from '@mui/material'
+import { alpha, Box, Grid } from '@mui/material'
 import { useTranslation } from 'react-i18next'
 import { BasePage } from '@/components/base'
 import SettingClash from '@/components/setting/setting-clash'
-import SettingPrivacySuite from '@/components/setting/setting-privacy-suite'
 import SettingSystem from '@/components/setting/setting-system'
-import SettingVergeBasic from '@/components/setting/setting-verge-basic'
-import SettingRescue from '@/components/setting/setting-rescue'
 import SettingVergeUi from '@/components/setting/setting-verge-ui'
 import { showNotice } from '@/services/notice-service'
 import { useThemeMode } from '@/services/states'
@@ -17,41 +14,40 @@ const SettingPage = () => {
   }
   const mode = useThemeMode()
   const isDark = mode === 'light' ? false : true
-  const cardSx = (mb = true) => ({
+  const cardSx = (mb = true) => (theme: any) => ({
     borderRadius: 2,
     marginBottom: mb ? 1.5 : 0,
-    backgroundColor: isDark ? '#282a36' : '#ffffff',
+    backgroundColor: theme.palette.background.paper,
+    border: `1px solid ${theme.palette.divider}`,
+    boxShadow: theme.palette.mode === 'dark' ? '0 1px 3px rgba(0,0,0,0.3)' : '0 1px 3px rgba(0,0,0,0.06)',
+    transition: 'transform .18s ease, box-shadow .18s ease, border-color .18s ease',
+    '&:hover': {
+      transform: 'translateY(-2px)',
+      boxShadow: theme.palette.mode === 'dark' ? '0 8px 24px rgba(0,0,0,0.45)' : '0 8px 24px rgba(0,0,0,0.12)',
+      borderColor: alpha(theme.palette.primary.main, 0.4),
+    },
+    '@keyframes settingsCardIn': {
+      '0%': { opacity: 0, transform: 'translateY(10px)' },
+      '100%': { opacity: 1, transform: 'translateY(0)' },
+    },
+    animation: 'settingsCardIn .45s ease both',
   })
   return (
     <BasePage title={t('settings.page.title')}>
       <Grid container spacing={1.5} columns={{ xs: 6, sm: 6, md: 12 }}>
-        {/* 左栏：系统 + Clash + 常规设置 */}
+        {/* 左栏：系统 + Clash */}
         <Grid size={6}>
           <Box sx={cardSx()}>
             <SettingSystem onError={onError} />
           </Box>
-          <Box sx={cardSx()}>
+          <Box sx={cardSx(false)}>
             <SettingClash onError={onError} />
           </Box>
+        </Grid>
+        {/* 右栏：隐私自检 + 常规设置 */}
+        <Grid size={6}>
           <Box sx={cardSx(false)}>
             <SettingVergeUi onError={onError} />
-          </Box>
-        </Grid>
-        {/* 右栏：专项防泄漏 + 隐私套件 + 提权急救（①②之间要有缝，故 privacy-suite 用 cardSx()） */}
-        <Grid size={6}>
-          <Box sx={cardSx()}>
-            <SettingVergeBasic />
-          </Box>
-          <Box sx={cardSx()}>
-            <SettingPrivacySuite />
-          </Box>
-          <Box
-            sx={{
-              borderRadius: 2,
-              backgroundColor: isDark ? '#282a36' : '#ffffff',
-            }}
-          >
-            <SettingRescue />
           </Box>
         </Grid>
       </Grid>

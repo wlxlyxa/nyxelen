@@ -59,14 +59,33 @@
       .the-menu {
         flex: 1 1 80%;
         overflow-y: auto;
+        min-height: 0;
         margin-bottom: 0px;
         padding-top: 4px;
-        scrollbar-width: none;
-
-        &::-webkit-scrollbar {
-          width: 0;
-          height: 0;
-        }
+          scrollbar-width: thin;
+          scrollbar-color: transparent transparent;
+          transition: scrollbar-color .25s ease;
+          &:hover {
+            scrollbar-color: rgba(148, 163, 184, 0.5) transparent;
+          }
+          &::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+          }
+          &::-webkit-scrollbar-track {
+            background: transparent;
+          }
+          &::-webkit-scrollbar-thumb {
+            background: transparent;
+            border-radius: 3px;
+            transition: background .25s ease;
+          }
+          &:hover::-webkit-scrollbar-thumb {
+            background: rgba(148, 163, 184, 0.42);
+          }
+          &::-webkit-scrollbar-thumb:hover {
+            background: rgba(148, 163, 184, 0.62);
+          }
       }
 
       .the-traffic {

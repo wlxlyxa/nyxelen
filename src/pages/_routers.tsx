@@ -1,6 +1,7 @@
 import ArticleRoundedIcon from '@mui/icons-material/ArticleRounded'
 import ForkRightRoundedIcon from '@mui/icons-material/ForkRightRounded'
 import ShieldRoundedIcon from '@mui/icons-material/ShieldRounded'
+import AccountTreeRoundedIcon from '@mui/icons-material/AccountTreeRounded'
 import TimelineRoundedIcon from '@mui/icons-material/TimelineRounded'
 import LockOpenRoundedIcon from '@mui/icons-material/LockOpenRounded'
 import SettingsRoundedIcon from '@mui/icons-material/SettingsRounded'
@@ -21,6 +22,7 @@ import { ensureLanguageSections } from '@/services/i18n'
 
 import Layout from './_layout'
 import HomePage from './home'
+import ProcessProxyPage from './process-proxy'
 
 const waitForWarmupIdle = (signal: AbortSignal) =>
   new Promise<void>((resolve) => {
@@ -105,7 +107,13 @@ export const navItems = [
     path: '/',
     icon: [<ShieldRoundedIcon key="mui" />, <ShieldRoundedIcon key="svg" />],
     Component: HomePage,
-  },
+    },
+    {
+      label: '进程代理',
+      path: '/process-proxy',
+      icon: [<AccountTreeRoundedIcon key="mui" />, <AccountTreeRoundedIcon key="svg" />],
+      Component: ProcessProxyPage,
+    },
   {
     label: 'layout.components.navigation.tabs.proxies',
     path: '/proxies',

@@ -3,13 +3,13 @@
     "navigation": {
       "tabs": {
         "home": "防护态势",
-        "proxies": "代 理",
-        "profiles": "订 阅",
-        "connections": "连 接",
-        "rules": "规 则",
-        "logs": "日 志",
-        "unlock": "测 试",
-        "settings": "设 置"
+        "proxies": "节点切换",
+        "profiles": "订阅导入",
+        "connections": "连接状态",
+        "rules": "规则管理",
+        "logs": "日志检测",
+        "unlock": "解锁测试",
+        "settings": "高级设置"
       },
       "menu": {
         "reorderMode": "菜单排序模式",

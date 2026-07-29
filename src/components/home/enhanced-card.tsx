@@ -50,7 +50,9 @@ export const EnhancedCard = forwardRef<HTMLElement, EnhancedCardProps>(
           '&:hover': {
             transform: 'translateY(-3px)',
             borderColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.08)',
-            boxShadow: isDark ? '0 14px 34px rgba(0,0,0,0.55)' : '0 14px 34px rgba(0,0,0,0.12)',
+            boxShadow: isDark
+              ? '0 14px 34px rgba(0,0,0,0.5)'
+              : '0 14px 34px rgba(0,0,0,0.10)',
           },
         }}
         ref={ref}

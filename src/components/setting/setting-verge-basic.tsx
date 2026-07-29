@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next'
 import { Switch, TooltipIcon } from '@/components/base'
 import { useVerge } from '@/hooks/use-verge'
 import { showNotice } from '@/services/notice-service'
+import { leakStatusCache } from '@/services/leak-status-cache'
 import { SettingItem, SettingList } from './mods/setting-comp'
 
 const DEEP_LEAK_ITEMS = [
@@ -27,28 +28,28 @@ const SUITE_ITEMS: ReadonlyArray<readonly [SuiteKey, string, string, string, str
   ['bcast', '局域网广播族全关', '关闭 LLMNR/mDNS/SSDP/UPnP/WS-Discovery 广播，防主机名+本地IP被嗅探。副作用：局域网设备自动发现可能受影响。', 'enable_broadcast_protection', 'disable_broadcast_protection'],
 ]
 
-const TOTAL = SAFE_LEAK_KEYS.length + SUITE_ITEMS.length + 3
+const TOTAL = DEEP_LEAK_ITEMS.length + SUITE_ITEMS.length + 3
 const delay = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))
 
 const SettingVergeBasic = () => {
   const { t } = useTranslation()
   const { verge, patchVerge, mutateVerge } = useVerge()
 
-  const [ipv6Block, setIpv6Block] = useState(false)
+  const [ipv6Block, setIpv6Block] = useState<boolean>(() => leakStatusCache.ipv6)
   useEffect(() => {
     invoke<boolean>('check_ipv6_block_status').then(setIpv6Block).catch(() => {})
   }, [])
 
-  const [leak, setLeak] = useState<Record<LeakKey, boolean>>({
-    ncsi: false, quic: false, wpad: false, ocsp: false, llmnr: false, dns: false,
-  })
+  const [leak, setLeak] = useState<Record<LeakKey, boolean>>(() => ({
+    ncsi: leakStatusCache.leak.ncsi, quic: leakStatusCache.leak.quic, wpad: leakStatusCache.leak.wpad, ocsp: leakStatusCache.leak.ocsp, llmnr: leakStatusCache.leak.llmnr, dns: leakStatusCache.leak.dns,
+  }))
   useEffect(() => {
     DEEP_LEAK_ITEMS.forEach(([key, , , , , , checkCmd]) => {
       invoke<boolean>(checkCmd).then((v) => setLeak((s) => ({ ...s, [key]: v }))).catch(() => {})
     })
   }, [])
 
-  const [suite, setSuite] = useState<Record<SuiteKey, boolean>>({ teredo: false, bcast: false })
+  const [suite, setSuite] = useState<Record<SuiteKey, boolean>>(() => ({ teredo: leakStatusCache.suite.teredo, bcast: leakStatusCache.suite.bcast }))
   useEffect(() => {
     invoke<{ teredo: boolean; bcast: boolean }>('check_privacy_suite_status')
       .then((r) => setSuite({ teredo: r.teredo, bcast: r.bcast }))
@@ -57,10 +58,13 @@ const SettingVergeBasic = () => {
 
   const [busy, setBusy] = useState(false)
   const [progress, setProgress] = useState(0)
+  useEffect(() => { leakStatusCache.leak.wpad = leak.wpad; leakStatusCache.leak.ocsp = leak.ocsp; leakStatusCache.leak.llmnr = leak.llmnr; leakStatusCache.leak.dns = leak.dns; leakStatusCache.leak.ncsi = leak.ncsi; leakStatusCache.leak.quic = leak.quic }, [leak])
+  useEffect(() => { leakStatusCache.suite.teredo = suite.teredo; leakStatusCache.suite.bcast = suite.bcast }, [suite])
+  useEffect(() => { leakStatusCache.ipv6 = ipv6Block }, [ipv6Block])
 
   const allOn = useMemo(
     () =>
-      SAFE_LEAK_KEYS.every((k) => leak[k]) &&
+      DEEP_LEAK_ITEMS.every(([k]) => leak[k]) &&
       SUITE_ITEMS.every(([k]) => suite[k]) &&
       (verge?.webrtc_leak_protection ?? false) &&
       (verge?.smhnr_enabled ?? false) &&
@@ -82,6 +86,8 @@ const SettingVergeBasic = () => {
       results.forEach((r) => {
         if (r.status === 'rejected') {
           const err = (r as PromiseRejectedResult).reason
+          onChangeData({ webrtc_leak_protection: !c })
+          patchVerge({ webrtc_leak_protection: !c })
           showNotice.error(typeof err === 'string' ? err : '设置 WebRTC/DNS 防泄漏失败，可能需要以管理员身份运行')
         }
       })
@@ -92,6 +98,8 @@ const SettingVergeBasic = () => {
     onChangeData({ smhnr_enabled: c })
     patchVerge({ smhnr_enabled: c })
     void invoke(c ? 'enable_smhnr_protection' : 'disable_smhnr_protection').catch((err) => {
+      onChangeData({ smhnr_enabled: !c })
+      patchVerge({ smhnr_enabled: !c })
       showNotice.error(typeof err === 'string' ? err : '设置 SMHNR 防泄漏失败，可能需要以管理员身份运行')
     })
   }
@@ -124,59 +132,92 @@ const SettingVergeBasic = () => {
     })
   }
 
-  // 串行 + 间隔，避免并发风暴与网络栈瞬时抖动；async 让 UI 不假死
   const onToggleAll = async () => {
     if (busy) return
     const targetOn = !allOn
     setBusy(true)
     setProgress(0)
     let done = 0
+    let webrtcFinal = verge?.webrtc_leak_protection ?? false
+    let smhnrFinal = verge?.smhnr_enabled ?? false
     const step = async (fn: () => Promise<void>) => {
       try {
         await fn()
       } catch {
-        /* 单项失败不中断整体 */
+        /* 单项失败不中断整体；结尾用系统真值校准 */
       }
       done += 1
       setProgress(done)
       await delay(350)
     }
-
     for (const [key, , , en, dis, ck] of DEEP_LEAK_ITEMS) {
-      if (!SAFE_LEAK_KEYS.includes(key)) continue
       await step(async () => {
         setLeak((s) => ({ ...s, [key]: targetOn }))
         onChangeData({ [ck]: targetOn })
         patchVerge({ [ck]: targetOn })
-        await invoke(targetOn ? en : dis)
+        await invoke(targetOn ? en : dis).catch(() => {})
       })
     }
     for (const [key, , , en, dis] of SUITE_ITEMS) {
       await step(async () => {
         setSuite((s) => ({ ...s, [key]: targetOn }))
-        await invoke(targetOn ? en : dis)
+        await invoke(targetOn ? en : dis).catch(() => {})
       })
     }
     await step(async () => {
       onChangeData({ webrtc_leak_protection: targetOn })
       patchVerge({ webrtc_leak_protection: targetOn })
-      await Promise.allSettled([
+      webrtcFinal = targetOn
+      const results = await Promise.allSettled([
         invoke(targetOn ? 'enable_webrtc_control' : 'disable_webrtc_control'),
         invoke(targetOn ? 'enable_doh_block' : 'disable_doh_block'),
       ])
+      if (results.some((r) => r.status === 'rejected')) {
+        onChangeData({ webrtc_leak_protection: !targetOn })
+        patchVerge({ webrtc_leak_protection: !targetOn })
+        webrtcFinal = !targetOn
+      }
     })
     await step(async () => {
       onChangeData({ smhnr_enabled: targetOn })
       patchVerge({ smhnr_enabled: targetOn })
-      await invoke(targetOn ? 'enable_smhnr_protection' : 'disable_smhnr_protection')
+      smhnrFinal = targetOn
+      await invoke(targetOn ? 'enable_smhnr_protection' : 'disable_smhnr_protection').catch(() => {
+        onChangeData({ smhnr_enabled: !targetOn })
+        patchVerge({ smhnr_enabled: !targetOn })
+        smhnrFinal = !targetOn
+      })
     })
     await step(async () => {
       setIpv6Block(targetOn)
-      await invoke(targetOn ? 'enable_ipv6_block' : 'disable_ipv6_block')
+      await invoke(targetOn ? 'enable_ipv6_block' : 'disable_ipv6_block').catch(() => {})
     })
-
+    await delay(1200)
+    const leakChecks = await Promise.all(
+      DEEP_LEAK_ITEMS.map(([, , , , , , ck]) => invoke<boolean>(ck).catch(() => false)),
+    )
+    const realLeak: Record<string, boolean> = {}
+    DEEP_LEAK_ITEMS.forEach(([k], i) => { realLeak[k] = leakChecks[i] })
+    setLeak(realLeak as Record<LeakKey, boolean>)
+    const suiteVal = await invoke<{ teredo: boolean; bcast: boolean }>('check_privacy_suite_status').catch(() => ({ teredo: false, bcast: false }))
+    setSuite({ teredo: suiteVal.teredo, bcast: suiteVal.bcast })
+    const ipv6Val = await invoke<boolean>('check_ipv6_block_status').catch(() => false)
+    setIpv6Block(ipv6Val)
+    const realOn =
+      DEEP_LEAK_ITEMS.filter(([k]) => realLeak[k]).length +
+      (suiteVal.teredo ? 1 : 0) +
+      (suiteVal.bcast ? 1 : 0) +
+      (webrtcFinal ? 1 : 0) +
+      (smhnrFinal ? 1 : 0) +
+      (ipv6Val ? 1 : 0)
     setBusy(false)
-    showNotice.success(targetOn ? `已一键开启 ${TOTAL} 项常规防护` : `已一键关闭 ${TOTAL} 项常规防护`)
+    if (realOn === TOTAL) {
+      showNotice.success(targetOn ? `已一键开启 ${TOTAL} 项常规防护` : `已一键关闭 ${TOTAL} 项常规防护`)
+    } else if (targetOn) {
+      showNotice.error(`已处理，但仅 ${realOn}/${TOTAL} 项生效——未生效项可能需要管理员权限，或系统尚未刷新，可稍后点右上角刷新确认`)
+    } else {
+      showNotice.error(`已处理，但仍有 ${realOn} 项处于开启——可稍后点右上角刷新确认，或检查管理员权限`)
+    }
   }
 
   return (
@@ -186,7 +227,7 @@ const SettingVergeBasic = () => {
           label="一键开启 / 关闭常规防护"
           extra={
             <TooltipIcon
-              title={`一键${allOn ? '关闭' : '开启'}这 ${TOTAL} 项——它们只动局域网发现 / 证书校验 / 解析路径 / 浏览器策略，不会让你上不了外网；再次点击可全部${allOn ? '开启' : '关闭'}。可能让系统误判断网或站点变慢的 NCSI / QUIC 在下方单独控制。`}
+              title={`一键${allOn ? '关闭' : '开启'}这 ${TOTAL} 项——它们只动局域网发现 / 证书校验 / 解析路径 / 浏览器策略，不会让你上不了外网；再次点击可全部${allOn ? '开启' : '关闭'}。NCSI / QUIC 有副作用，已纳入一键，开启前请知悉。`}
               sx={{ opacity: '0.7' }}
             />
           }
@@ -243,7 +284,7 @@ const SettingVergeBasic = () => {
         </SettingItem>
       </SettingList>
 
-      <SettingList title="可能影响联网 · 请单独权衡">
+      <SettingList title="可能影响联网 · 已纳入一键（开启前请知悉副作用）">
         {DEEP_LEAK_ITEMS.filter(([key]) => RISKY_LEAK_KEYS.includes(key)).map(
           ([key, label, tip, enableCmd, disableCmd, configKey]) => (
             <SettingItem key={key} label={label} extra={<TooltipIcon title={tip} sx={{ opacity: '0.7' }} />}>

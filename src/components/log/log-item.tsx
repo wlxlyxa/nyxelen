@@ -1,53 +1,28 @@
-import { styled, Box } from '@mui/material'
+import { alpha, Box, useTheme } from '@mui/material'
 import type { ReactNode } from 'react'
 
 import type { SearchState } from '@/components/base'
 
-const Item = styled(Box)(({ theme: { palette, typography } }) => ({
-  padding: '8px 0',
-  margin: '0 12px',
-  lineHeight: 1.35,
-  borderBottom: `1px solid ${palette.divider}`,
-  fontSize: '0.875rem',
-  fontFamily: typography.fontFamily,
-  userSelect: 'text',
-  '& .time': {
-    color: palette.text.secondary,
-  },
-  '& .type': {
-    display: 'inline-block',
-    marginLeft: 8,
-    textAlign: 'center',
-    borderRadius: 2,
-    textTransform: 'uppercase',
-    fontWeight: '600',
-  },
-  '& .type[data-type="error"], & .type[data-type="err"]': {
-    color: palette.error.main,
-  },
-  '& .type[data-type="warning"], & .type[data-type="warn"]': {
-    color: palette.warning.main,
-  },
-  '& .type[data-type="info"], & .type[data-type="inf"]': {
-    color: palette.info.main,
-  },
-  '& .data': {
-    color: palette.text.primary,
-    overflowWrap: 'anywhere',
-  },
-  '& .highlight': {
-    backgroundColor: palette.mode === 'dark' ? '#ffeb3b40' : '#ffeb3b90',
-    borderRadius: 2,
-    padding: '0 2px',
-  },
-}))
+const MONO = 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace'
 
 interface Props {
   value: ILogItem
   searchState?: SearchState
 }
 
+const levelColor = (theme: any, type: string): string => {
+  const p = theme.palette
+  const t = (type || '').toLowerCase()
+  if (t === 'err' || t === 'error') return p.error.main
+  if (t === 'warn' || t === 'warning') return p.warning.main
+  if (t === 'info' || t === 'inf') return p.info.main
+  return p.text.secondary
+}
+
 const LogItem = ({ value, searchState }: Props) => {
+  const theme = useTheme()
+  const c = levelColor(theme, value.type)
+
   const renderHighlightText = (text: string) => {
     if (!searchState?.text.trim()) return text
 
@@ -106,17 +81,40 @@ const LogItem = ({ value, searchState }: Props) => {
   }
 
   return (
-    <Item>
-      <div>
-        <span className="time">{renderHighlightText(value.time || '')}</span>
-        <span className="type" data-type={value.type.toLowerCase()}>
+    <Box
+      sx={(theme) => ({
+        position: 'relative',
+        margin: '0 12px',
+        padding: '7px 12px 7px 11px',
+        lineHeight: 1.4,
+        borderBottom: `1px solid ${theme.palette.divider}`,
+        background: alpha(c, 0.03),
+        boxShadow: `inset 3px 0 0 0 ${alpha(c, 0.75)}`,
+        transition: 'background-color .18s ease, box-shadow .18s ease',
+        cursor: 'default',
+        '&:hover': {
+          background: alpha(c, 0.09),
+          boxShadow: `inset 4px 0 0 0 ${c}`,
+        },
+        '& .highlight': {
+          backgroundColor: theme.palette.mode === 'dark' ? '#ffeb3b40' : '#ffeb3b90',
+          borderRadius: '2px',
+          padding: '0 2px',
+        },
+      })}
+    >
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.4 }}>
+        <Box sx={(theme) => ({ fontFamily: MONO, fontSize: 11, color: alpha(theme.palette.text.secondary, 0.6), fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' })}>
+          {renderHighlightText(value.time || '')}
+        </Box>
+        <Box sx={(theme) => ({ flexShrink: 0, px: 0.8, py: 0.25, borderRadius: 1, background: alpha(c, 0.14), border: `1px solid ${alpha(c, 0.4)}`, color: c, fontFamily: MONO, fontSize: 10, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', whiteSpace: 'nowrap', lineHeight: 1.4 })}>
           {renderHighlightText(value.type)}
-        </span>
-      </div>
-      <div>
-        <span className="data">{renderHighlightText(value.payload)}</span>
-      </div>
-    </Item>
+        </Box>
+      </Box>
+      <Box sx={(theme) => ({ fontFamily: MONO, fontSize: 12.5, color: theme.palette.text.primary, overflowWrap: 'anywhere', userSelect: 'text' })}>
+        {renderHighlightText(value.payload)}
+      </Box>
+    </Box>
   )
 }
 

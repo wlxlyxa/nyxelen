@@ -3,8 +3,18 @@ import {
   RefreshOutlined,
   VisibilityOffOutlined,
   VisibilityOutlined,
+  CheckCircleRounded,
+  WarningAmberRounded,
 } from '@mui/icons-material'
-import { Box, Button, IconButton, Skeleton, Typography } from '@mui/material'
+import {
+  Box,
+  Button,
+  IconButton,
+  Skeleton,
+  Typography,
+  alpha,
+  useTheme,
+} from '@mui/material'
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
 import { useEffect } from 'foxact/use-abortable-effect'
 import { useIntersection } from 'foxact/use-intersection'
@@ -16,6 +26,8 @@ import {
   useEffectEvent,
   useMemo,
   useState,
+  type ReactNode,
+  type PropsWithChildren,
 } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -24,37 +36,68 @@ import { useQuery } from '@/services/query-client'
 
 import { EnhancedCard } from './enhanced-card'
 
-// 定义刷新时间（秒）
 const IP_REFRESH_SECONDS = 300
 const COUNTDOWN_TICK_INTERVAL = 5_000
 const IP_INFO_CACHE_KEY = 'cv_ip_info_cache'
 
-const InfoItem = memo(({ label, value }: { label: string; value?: string }) => (
-  <Box sx={{ mb: 0.7, display: 'flex', alignItems: 'flex-start' }}>
-    <Typography
-      variant="body2"
-      color="text.secondary"
-      sx={{ minwidth: 60, mr: 0.5, flexShrink: 0, textAlign: 'right' }}
+// 统一字段行：label 右对齐定宽，value 自适应；hover 整行微亮浮起，让数据卡"能感"
+const InfoItem = memo(
+  ({
+    label,
+    value,
+    fullText,
+  }: {
+    label: string
+    value?: ReactNode
+    fullText?: string
+  }) => (
+    <Box
+      sx={(theme) => ({
+        mb: 0.5,
+        px: 1,
+        py: 0.45,
+        borderRadius: 1.25,
+        display: 'flex',
+        alignItems: 'flex-start',
+        transition: 'background-color .18s ease, transform .15s ease',
+        '&:hover': {
+          backgroundColor: alpha(theme.palette.text.primary, 0.05),
+          transform: 'translateX(2px)',
+        },
+      })}
     >
-      {label}:
-    </Typography>
-    <Typography
-      variant="body2"
-      sx={{
-        ml: 0.5,
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-        wordBreak: 'break-word',
-        whiteSpace: 'normal',
-        flexGrow: 1,
-      }}
-    >
-      {value || 'Unknown'}
-    </Typography>
-  </Box>
-))
-
-// 获取国旗表情
+      <Typography
+        variant="body2"
+        color="text.secondary"
+        sx={{ minWidth: 64, mr: 0.5, flexShrink: 0, textAlign: 'right' }}
+      >
+        {label}：
+      </Typography>
+      <Box
+        title={fullText}
+        sx={{
+          ml: 0.5,
+          minWidth: 0,
+          flexGrow: 1,
+          overflow: 'hidden',
+        }}
+      >
+        <Typography
+          variant="body2"
+          sx={{
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {value === undefined || value === null || value === ''
+            ? 'Unknown'
+            : value}
+        </Typography>
+      </Box>
+    </Box>
+  ),
+)
 const getCountryFlag = (countryCode: string | undefined) => {
   if (!countryCode) return ''
   const codePoints = countryCode
@@ -74,39 +117,49 @@ type CountDownState = XOR<
   }
 >
 
-const IPInfoCardContainer = forwardRef<HTMLElement, React.PropsWithChildren>(
-  ({ children }, ref) => {
-    const { t } = useTranslation()
-    const { refetch: mutate } = useIPInfo()
+// 自检结果：代理标记 + 时区一致性，随卡片挂载与刷新而更新
+type SelfCheck = {
+  loading: boolean
+  proxy: boolean | null
+  tzMatch: boolean | null
+  exitTz: string | null
+}
 
-    return (
-      <EnhancedCard
-        title={t('home.components.ipInfo.title')}
-        icon={<LocationOnOutlined />}
-        iconColor="info"
-        ref={ref}
-        action={
-          <IconButton size="small" onClick={() => mutate()}>
-            <RefreshOutlined />
-          </IconButton>
-        }
-      >
-        {children}
-      </EnhancedCard>
-    )
-  },
-)
+const IPInfoCardContainer = forwardRef<
+  HTMLElement,
+  PropsWithChildren<{ onRefresh?: () => void }>
+>(({ children, onRefresh }, ref) => {
+  const { refetch: mutate } = useIPInfo()
 
-// IP信息卡片组件
+  return (
+    <EnhancedCard
+      title="隐私自检"
+      icon={<LocationOnOutlined />}
+      iconColor="info"
+      ref={ref}
+      action={
+        <IconButton
+          size="small"
+          onClick={() => {
+            mutate()
+            onRefresh?.()
+          }}
+        >
+          <RefreshOutlined />
+        </IconButton>
+      }
+    >
+      {children}
+    </EnhancedCard>
+  )
+})
+
 export const IpInfoCard = () => {
   const { t } = useTranslation()
+  const theme = useTheme()
   const [showIp, setShowIp] = useState(false)
   const appWindow = useMemo(() => getCurrentWebviewWindow(), [])
 
-  // track ip info card has been in viewport or not
-  // hasIntersected default to false, and will be true once the card is in viewport
-  // and will never be false again afterwards (unless resetIntersected is called or
-  // the component is unmounted)
   const [containerRef, hasIntersected, _resetIntersected] = useIntersection({
     rootMargin: '0px',
   })
@@ -118,7 +171,40 @@ export const IpInfoCard = () => {
 
   const { data: ipInfo, error, isLoading, refetch: mutate } = useIPInfo()
 
-  // function useEffectEvent
+  // 自检：代理标记 + 出口时区 vs 本机时区。挂载跑一次，刷新按钮一并触发。
+  const [selfCheck, setSelfCheck] = useState<SelfCheck>({
+    loading: false,
+    proxy: null,
+    tzMatch: null,
+    exitTz: null,
+  })
+  const runSelfCheck = useCallback(async () => {
+    setSelfCheck((s) => ({ ...s, loading: true }))
+    try {
+      const r = await fetch(
+        'http://ip-api.com/json?fields=proxy,timezone',
+      )
+      const d = await r.json()
+      const localTz = Intl.DateTimeFormat().resolvedOptions().timeZone
+      const exitTz: string = d.timezone || ''
+      const norm = (z: string) => z.replace(/_/g, ' ')
+      const tail = localTz.split('/').pop() || '##'
+      const tzMatch =
+        norm(exitTz) === norm(localTz) || exitTz.endsWith(tail)
+      setSelfCheck({
+        loading: false,
+        proxy: !!d.proxy,
+        tzMatch,
+        exitTz,
+      })
+    } catch {
+      setSelfCheck((s) => ({ ...s, loading: false }))
+    }
+  }, [])
+  useEffect(() => {
+    void runSelfCheck()
+  }, [runSelfCheck])
+
   const onCountdownTick = useEffectEvent(async () => {
     const now = Date.now()
     const ts = ipInfo?.lastFetchTs
@@ -131,35 +217,20 @@ export const IpInfoCard = () => {
 
     if (remaining <= 0) {
       if (
-        // has intersected at least once
-        // this avoids unncessary revalidation if user never scrolls down,
-        // then we will only load initially once.
         hasIntersected &&
-        // is online
         navigator.onLine &&
-        // there is no ongoing revalidation already scheduled
         countdown.type !== 'revalidating' &&
-        // window is visible
         (await appWindow.isVisible())
       ) {
         setCountdown({ type: 'revalidating' })
-        // we do not care about the result of mutate here. after mutate is done,
-        // simply wait for next interval tick with `setCountdown({ type: "countdown", ... })`
         try {
           await mutate()
         } finally {
-          // in case mutate throws error, we still need to reset the countdown state
           setCountdown({
             type: 'countdown',
             remainingSeconds: IP_REFRESH_SECONDS,
           })
         }
-      } else {
-        // do nothing. we even skip "setCountdown" to reduce re-renders
-        //
-        // but the remaining time still <= 0, and setInterval is not stopped, this
-        // callback will still be regularly triggered, as soon as the window is visible
-        // or network online again, we mutate() immediately in the following tick.
       }
     } else {
       setCountdown({
@@ -169,51 +240,28 @@ export const IpInfoCard = () => {
     }
   })
 
-  // Countdown / refresh scheduler — updates UI every 1s and triggers immediate revalidation when expired
   useEffect(() => {
     let timer: number | null = null
 
-    // Do not add document.hidden check here as it is not reliable in Tauri.
-    //
-    // Thank god IntersectionObserver is a DOM API that relies on DOM/webview
-    // instead of Tauri, which is reliable enough.
     if (hasIntersected) {
-      console.debug(
-        'IP info card has entered the viewport, starting the countdown interval.',
-      )
       timer = window.setInterval(onCountdownTick, COUNTDOWN_TICK_INTERVAL)
-    } else {
-      console.debug(
-        'IP info card has not yet entered the viewport, no counting down.',
-      )
     }
 
-    // This will fire when the window is minimized or restored
     document.addEventListener('visibilitychange', onVisibilityChange)
-    // Tauri's visibility change detection is actually broken on some platforms:
-    // https://github.com/tauri-apps/tauri/issues/10592
-    //
-    // It is working on macOS though (tested).
-    // So at least we should try to pause countdown on supported platforms to
-    // reduce power consumption.
+
     function onVisibilityChange() {
       if (document.hidden) {
-        console.debug('Document hidden, pause the interval')
-        // Pause the timer
         if (timer != null) {
           clearInterval(timer)
           timer = null
         }
       } else if (hasIntersected) {
-        console.debug('Document visible, resume the interval')
-        // Resume the timer only when previous one is cleared
         if (timer == null) {
-          timer = window.setInterval(onCountdownTick, COUNTDOWN_TICK_INTERVAL)
+          timer = window.setInterval(
+            onCountdownTick,
+            COUNTDOWN_TICK_INTERVAL,
+          )
         }
-      } else {
-        console.debug(
-          'Document visible, but IP info card has never entered the viewport, not even once, not starting the interval.',
-        )
       }
     }
 
@@ -226,6 +274,19 @@ export const IpInfoCard = () => {
   const toggleShowIp = useCallback(() => {
     setShowIp((prev) => !prev)
   }, [])
+
+  // 防护状态决定 ambient 与色带颜色：守住=绿，有风险=琥珀，加载中=中性
+  const risk = selfCheck.proxy === true || selfCheck.tzMatch === false
+  const guarded = selfCheck.proxy === false && selfCheck.tzMatch === true
+  const accent = selfCheck.loading
+    ? theme.palette.text.secondary
+    : risk
+      ? theme.palette.warning.main
+      : guarded
+        ? theme.palette.success.main
+        : theme.palette.info.main
+
+  const localTz = Intl.DateTimeFormat().resolvedOptions().timeZone
 
   let mainElement: React.ReactElement
 
@@ -263,84 +324,135 @@ export const IpInfoCard = () => {
         </Box>
       )
       break
-    default: // Normal render
-      mainElement = (
-        <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+    default:
+        mainElement = (
           <Box
             sx={{
-              display: 'flex',
-              flexDirection: 'row',
-              flex: 1,
+              position: 'relative',
               overflow: 'hidden',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              borderRadius: 2,
+              background: `radial-gradient(125% 85% at 100% 0%, ${alpha(accent, 0.12)}, transparent 62%)`,
+              transition: 'background .5s ease',
             }}
           >
-            {/* 左侧：国家和IP地址 */}
-            <Box sx={{ width: '40%', overflow: 'hidden' }}>
+            <Box
+              sx={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                height: 3,
+                background: `linear-gradient(90deg, transparent, ${accent}, transparent)`,
+                transition: 'background .5s ease',
+              }}
+            />
+            <Box
+              sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                flex: 1,
+                overflow: 'hidden',
+                pt: 0.5,
+              }}
+            >
               <Box
                 sx={{
                   display: 'flex',
                   alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 1,
                   mb: 1,
-                  overflow: 'hidden',
+                  px: 1,
                 }}
               >
-                <Box
-                  component="span"
-                  sx={{
-                    fontSize: '1.5rem',
-                    mr: 1,
-                    display: 'inline-block',
-                    width: 28,
-                    textAlign: 'center',
-                    flexShrink: 0,
-                    fontFamily: '"twemoji mozilla", sans-serif',
-                  }}
-                >
-                  {getCountryFlag(ipInfo?.country_code)}
-                </Box>
-                <Typography
-                  variant="subtitle1"
-                  sx={{
-                    fontWeight: 'medium',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                    maxWidth: '100%',
-                  }}
-                >
-                  {ipInfo?.country ||
-                    t('home.components.ipInfo.labels.unknown')}
-                </Typography>
-              </Box>
-
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  sx={{ flexShrink: 0 }}
-                >
-                  {t('home.components.ipInfo.labels.ip')}:
-                </Typography>
                 <Box
                   sx={{
                     display: 'flex',
                     alignItems: 'center',
-                    ml: 1,
+                    minWidth: 0,
+                    flex: 1,
                     overflow: 'hidden',
-                    maxWidth: 'calc(100% - 30px)',
+                  }}
+                >
+                  <Box
+                    component="span"
+                    sx={{
+                      fontSize: '1.5rem',
+                      mr: 1,
+                      display: 'inline-block',
+                      width: 28,
+                      textAlign: 'center',
+                      flexShrink: 0,
+                      fontFamily: '"twemoji mozilla", sans-serif',
+                    }}
+                  >
+                    {getCountryFlag(ipInfo?.country_code)}
+                  </Box>
+                  <Typography
+                    variant="h6"
+                    sx={{
+                      fontWeight: 700,
+                      fontSize: '1.1rem',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {ipInfo?.country ||
+                      t('home.components.ipInfo.labels.unknown')}
+                  </Typography>
+                </Box>
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 0.25,
+                    flexShrink: 0,
                   }}
                 >
                   <Typography
-                    variant="body2"
+
                     sx={{
-                      fontFamily: 'monospace',
-                      fontSize: '0.75rem',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      wordBreak: 'break-all',
+
+                      fontSize: '0.8rem',
+
+                      fontWeight: 600,
+
+                      color: 'text.secondary',
+
+                      mr: 0.5,
+
+                      flexShrink: 0,
+
                     }}
+
                   >
+
+                    IP：
+
+                  </Typography>
+
+                  <Typography
+
+                    sx={{
+
+                      fontFamily: 'monospace',
+
+                      fontSize: '0.8rem',
+
+                      fontWeight: 600,
+
+                      color: 'text.secondary',
+
+                    }}
+
+                  >
+
                     {showIp ? ipInfo?.ip : '••••••••••'}
+
                   </Typography>
                   <IconButton size="small" onClick={toggleShowIp}>
                     {showIp ? (
@@ -352,71 +464,178 @@ export const IpInfoCard = () => {
                 </Box>
               </Box>
 
-              <InfoItem
-                label={t('home.components.ipInfo.labels.asn')}
-                value={ipInfo?.asn ? `AS${ipInfo.asn}` : 'N/A'}
-              />
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr',
+                  gap: 0.25,
+                }}
+              >
+                <InfoItem
+                  label={t('home.components.ipInfo.labels.asn')}
+                  value={ipInfo?.asn ? `AS${ipInfo.asn}` : 'N/A'}
+                />
+                <InfoItem
+                  label={t('home.components.ipInfo.labels.isp')}
+                  value={ipInfo?.organization}
+                  fullText={ipInfo?.organization}
+                />
+                <InfoItem
+                  label="代理标记"
+                  fullText={
+                    selfCheck.proxy ? '是 ⚠ 出口已被标记为代理' : '否 ✅'
+                  }
+                  value={
+                    selfCheck.loading ? (
+                      <Skeleton
+                        variant="text"
+                        width={96}
+                        height={16}
+                        sx={{ display: 'inline-block', m: 0 }}
+                      />
+                    ) : (
+                      <Typography
+                        component="span"
+                        variant="body2"
+                        sx={{
+                          fontWeight: 700,
+                          color: selfCheck.proxy
+                            ? theme.palette.error.main
+                            : theme.palette.success.main,
+                          transition: 'color .4s ease',
+                        }}
+                      >
+                        {selfCheck.proxy
+                          ? '是 ⚠ 出口已被标记为代理'
+                          : '否 ✅'}
+                      </Typography>
+                    )
+                  }
+                />
+                <InfoItem
+                  label={t('home.components.ipInfo.labels.location')}
+                  value={[ipInfo?.city, ipInfo?.region]
+                    .filter(Boolean)
+                    .join(', ')}
+                  fullText={[ipInfo?.city, ipInfo?.region]
+                    .filter(Boolean)
+                    .join(', ')}
+                />
+              </Box>
+
+              <Box
+                sx={(theme) => ({
+                  mt: 0.75,
+                  mx: 0.5,
+                  px: 1.25,
+                  py: 0.75,
+                  borderRadius: 1.5,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1,
+                  flexWrap: 'wrap',
+                  background: selfCheck.loading
+                    ? alpha(theme.palette.text.secondary, 0.06)
+                    : selfCheck.tzMatch
+                      ? alpha(theme.palette.success.main, 0.1)
+                      : alpha(theme.palette.error.main, 0.1),
+                  border: `1px solid ${
+                    selfCheck.loading
+                      ? theme.palette.divider
+                      : selfCheck.tzMatch
+                        ? alpha(theme.palette.success.main, 0.35)
+                        : alpha(theme.palette.error.main, 0.4)
+                  }`,
+                  transition: 'all .35s ease',
+                  '&:hover': {
+                    borderColor: selfCheck.loading
+                      ? theme.palette.divider
+                      : selfCheck.tzMatch
+                        ? alpha(theme.palette.success.main, 0.6)
+                        : alpha(theme.palette.error.main, 0.7),
+                  },
+                })}
+              >
+                <Typography
+                  variant="body2"
+                  sx={{
+                    fontWeight: 700,
+                    color: 'text.secondary',
+                    flexShrink: 0,
+                  }}
+                >
+                  时区：
+                </Typography>
+                <Typography
+                  variant="body2"
+                  sx={(theme) => ({
+                    fontWeight: 600,
+                    wordBreak: 'break-word',
+                    color: selfCheck.loading
+                      ? theme.palette.text.secondary
+                      : selfCheck.tzMatch
+                        ? theme.palette.success.main
+                        : theme.palette.error.main,
+                    transition: 'color .4s ease',
+                  })}
+                >
+                  {selfCheck.loading ? (
+                    <Skeleton
+                      variant="text"
+                      width={140}
+                      height={16}
+                      sx={{ display: 'inline-block', m: 0 }}
+                    />
+                  ) : (
+                    <>
+                      {selfCheck.exitTz || '未知'} ｜ 本机 {localTz} ｜{' '}
+                      {selfCheck.tzMatch
+                        ? <><CheckCircleRounded sx={{ fontSize: '1.05rem', color: 'success.main', verticalAlign: 'text-bottom', mr: 0.4 }} />一致</>
+                        : <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.4, flexWrap: 'wrap' }}><WarningAmberRounded sx={{ fontSize: '1.05rem', color: 'error.main' }} /><Box component="span" sx={{ color: 'error.main', fontWeight: 700 }}>不一致</Box><Box component="span" sx={{ opacity: 0.55, fontWeight: 400, fontSize: '0.72rem', ml: 0.3 }}>易被关联真实地区</Box></Box>}
+                    </>
+                  )}
+                </Typography>
+              </Box>
             </Box>
 
-            {/* 右侧：组织、ISP和位置信息 */}
-            <Box sx={{ width: '60%', overflow: 'auto' }}>
-              <InfoItem
-                label={t('home.components.ipInfo.labels.isp')}
-                value={ipInfo?.organization}
-              />
-              <InfoItem
-                label={t('home.components.ipInfo.labels.org')}
-                value={ipInfo?.asn_organization}
-              />
-              <InfoItem
-                label={t('home.components.ipInfo.labels.location')}
-                value={[ipInfo?.city, ipInfo?.region]
-                  .filter(Boolean)
-                  .join(', ')}
-              />
-              <InfoItem
-                label={t('home.components.ipInfo.labels.timezone')}
-                value={ipInfo?.timezone}
-              />
-            </Box>
-          </Box>
-
-          <Box
-            sx={{
-              mt: 'auto',
-              pt: 0.5,
-              borderTop: 1,
-              borderColor: 'divider',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              opacity: 0.7,
-              fontSize: '0.7rem',
-            }}
-          >
-            <Typography variant="caption">
-              {t('home.components.ipInfo.labels.autoRefresh')}
-              {countdown.type === 'countdown'
-                ? `: ${countdown.remainingSeconds}s`
-                : '...'}
-            </Typography>
-            <Typography
-              variant="caption"
+            <Box
               sx={{
-                textOverflow: 'ellipsis',
-                overflow: 'hidden',
-                whiteSpace: 'nowrap',
+                mt: 'auto',
+                pt: 0.5,
+                borderTop: 1,
+                borderColor: 'divider',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                opacity: 0.7,
+                fontSize: '0.7rem',
               }}
             >
-              {`${ipInfo?.country_code ?? 'N/A'}, ${ipInfo?.longitude?.toFixed(2) ?? 'N/A'}, ${ipInfo?.latitude?.toFixed(2) ?? 'N/A'}`}
-            </Typography>
+              <Typography variant="caption">
+                {t('home.components.ipInfo.labels.autoRefresh')}
+                {countdown.type === 'countdown'
+                  ? `: ${countdown.remainingSeconds}s`
+                  : '...'}
+              </Typography>
+              <Typography
+                variant="caption"
+                sx={{
+                  textOverflow: 'ellipsis',
+                  overflow: 'hidden',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {`${ipInfo?.country_code ?? 'N/A'}, ${ipInfo?.longitude?.toFixed(2) ?? 'N/A'}, ${ipInfo?.latitude?.toFixed(2) ?? 'N/A'}`}
+              </Typography>
+            </Box>
           </Box>
-        </Box>
-      )
+        )
   }
 
   return (
-    <IPInfoCardContainer ref={containerRef}>{mainElement}</IPInfoCardContainer>
+    <IPInfoCardContainer ref={containerRef} onRefresh={runSelfCheck}>
+      {mainElement}
+    </IPInfoCardContainer>
   )
 }
 

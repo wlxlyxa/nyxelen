@@ -12,10 +12,10 @@ const getUserAgentPromise = once(async () => {
     // User-Agent 头的值必须是 ISO-8859-1 范围内的字符（HTTP 规范限制），
     // 不能直接用 getName() 返回的中文产品名"望仔"，否则 Headers 构造会直接抛错。
     // 这里固定用一个 ASCII 标识符，跟界面显示名无关。
-    return `WangZai/${version}`
+    return `Nyxelen/${version}`
   } catch (error) {
     console.debug('Failed to build User-Agent, fallback to default', error)
-    return 'WangZai'
+    return 'Nyxelen'
   }
 })
 // Get current IP and geolocation information （refactored IP detection with service-specific mappings）

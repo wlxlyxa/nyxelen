@@ -58,7 +58,7 @@
       "directMode": "Direct Mode"
     },
     "title": {
-      "default": "Proxy Groups",
+      "default": "Node Switch",
       "chainMode": "Proxy Chain Mode"
     }
   },

@@ -20,7 +20,17 @@ import {
   RefreshRounded,
   TextSnippetOutlined,
 } from '@mui/icons-material'
-import { Box, Button, Grid, IconButton, MenuItem, Stack, TextField, Typography } from '@mui/material'
+import {
+  Box,
+  Button,
+  Grid,
+  IconButton,
+  MenuItem,
+  Stack,
+  TextField,
+  Typography,
+  alpha,
+} from '@mui/material'
 import { TauriEvent } from '@tauri-apps/api/event'
 import { readText } from '@tauri-apps/plugin-clipboard-manager'
 import { readTextFile } from '@tauri-apps/plugin-fs'
@@ -348,10 +358,10 @@ const ProfilePage = () => {
           }
         }
         if (ni) {
-          showNotice.info('已导入，请点击右上角黄色火焰新完成激活', 4000)
+          showNotice.info('已导入，请点击激活节点完成激活', 4000)
         }
         setUrl('')
-             let tail = '，请点击右上角黄色火焰激活节点'
+             let tail = '，请点击激活节点完成激活'
         showNotice.success('已导入 ' + parsed.count + ' 个节点' + tail)
         setDisabled(false)
         setLoading(false)
@@ -1132,36 +1142,27 @@ const onAddManual = async function () {
            borderColor: 'warning.main',
            borderRadius: 2,
            p: 1.5,
-           bgcolor: 'rgba(255,165,0,0.07)',
+           bgcolor: 'transparent',
          }}
        >
-         <Box
-           sx={{ display: 'flex', alignItems: 'center', gap: 1, cursor: 'pointer' }}
-           onClick={() => setManualOpen(!manualOpen)}
-         >
-           <Typography sx={{ fontWeight: 700, color: 'warning.main', fontSize: 14 }}>
-  本软件支持任何协议导入，直接复制粘贴点击导入即可！由于内置防泄漏模块，会有10几秒加载时间，请耐心等待加载完成后使用！如有导入没有激活的情况，请自行点击右上角黄色火焰激活即可。
-  <br />
-  <Box
-    component="span"
-    sx={{
-      display: 'block',
-      textAlign: 'center',
-      color: '#ff5252',          // ← 唯一新增：从这一层起，红，且只红这一行
-    }}
-  >
-    如果您是 SOCKS5 / HTTP(S) 代理，请点此手动添加（IP + 端口 + 账号 + 密码）
+         <Box sx={(theme) => ({ position: 'relative', overflow: 'hidden', borderRadius: 2, border: `1px solid ${alpha(theme.palette.primary.main, 0.18)}`, background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.07)}, ${alpha(theme.palette.background.default, 0.3)})`, p: 2, mb: 1 })}>
+  <Box sx={(theme) => ({ position: 'absolute', top: -36, right: -36, width: 150, height: 150, borderRadius: '50%', background: `radial-gradient(circle, ${alpha(theme.palette.primary.main, 0.16)}, transparent 70%)`, pointerEvents: 'none' })} />
+  <Box sx={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+    <Box sx={(theme) => ({ width: 42, height: 42, borderRadius: 1.5, display: 'flex', alignItems: 'center', justifyContent: 'center', background: alpha(theme.palette.primary.main, 0.12), color: theme.palette.primary.main, flexShrink: 0 })}>
+      <ContentPasteRounded sx={{ fontSize: 23 }} />
+    </Box>
+    <Box sx={{ flex: 1, minWidth: 220 }}>
+      <Typography sx={{ fontWeight: 800, fontSize: 15, letterSpacing: -0.2, color: 'text.primary' }}>粘贴订阅或节点链接，一键导入</Typography>
+      <Typography sx={{ fontSize: 12.5, opacity: 0.66, mt: 0.3, lineHeight: 1.65 }}>支持任意协议，复制粘贴后点导入即可。内置防泄漏模块，首次导入约需 10 秒，加载完成前请稍候。</Typography>
+    </Box>
+    <Button size="small" variant="contained" color="primary" startIcon={<LocalFireDepartmentRounded />} onClick={(e) => { e.stopPropagation(); onEnhance(true) }} sx={(theme) => ({ flexShrink: 0, borderRadius: 2, fontWeight: 700, textTransform: 'none', transition: 'transform .15s ease, box-shadow .2s ease', '&:hover': { transform: 'translateY(-1px)', boxShadow: `0 6px 16px ${alpha(theme.palette.primary.main, 0.35)}` } })}>激活节点</Button>
   </Box>
-</Typography>
-           <Typography sx={{ ml: 'auto', fontSize: 14, opacity: 0.7 }}>
-             {manualOpen ? '收起' : '展开'}
-           </Typography>
-         </Box>
-         <Typography sx={{ fontSize: 12, opacity: 0.7, mt: 0.5 }}>
-           <Box component="span" sx={{ display: 'block', textAlign: 'center' }}>
-           也可在上方输入框直接粘贴完整链接，如 socks5://账号:密码@IP:端口 或 http://IP:端口:账号:密码。
-           </Box>
-         </Typography>
+  <Box sx={{ position: 'relative', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 1, mt: 1.5 }}>
+    <Button size="small" variant="outlined" color="warning" startIcon={<TextSnippetOutlined />} onClick={() => setManualOpen(!manualOpen)} sx={(theme) => ({ borderRadius: 1.5, textTransform: 'none', fontWeight: 600, fontSize: 12.5, transition: 'transform .15s ease', '&:hover': { transform: 'translateY(-1px)' } })}>SOCKS5 / HTTP(S) 手动添加</Button>
+    <Box sx={(theme) => ({ display: 'inline-flex', alignItems: 'center', px: 1.25, py: 0.55, borderRadius: 1.5, background: alpha(theme.palette.text.secondary, 0.07), color: alpha(theme.palette.text.secondary, 0.82), fontSize: 12 })}>链接格式：socks5://账号:密码@IP:端口</Box><Button size="small" variant="text" onClick={() => setManualOpen(!manualOpen)} sx={{ ml: 'auto', textTransform: 'none', fontSize: 12.5, fontWeight: 600 }}>{manualOpen ? '收起' : '展开手动添加'}</Button>
+    
+  </Box>
+</Box>
          {manualOpen && (
            <Box
              sx={{

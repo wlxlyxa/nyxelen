@@ -45,7 +45,7 @@
         "emergencyRefreshFailed": "긴급 새로고침 실패: {{message}}"
       }
     },
-    "title": "프로필"
+    "title": "구독 가져오기"
   },
   "components": {
     "card": {

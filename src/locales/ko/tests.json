@@ -47,7 +47,7 @@
         "detectionFailedWithName": "{{name}} 감지에 실패했습니다",
         "detectionTimeout": "감지 시간 초과 또는 실패"
       },
-      "title": "잠금 해제 테스트"
+      "title": "해제 테스트"
     }
   }
 }

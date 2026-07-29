@@ -30,7 +30,6 @@ import { Outlet, useLocation, useNavigate } from 'react-router'
 
 import iconDark from '@/assets/image/icon_dark.svg?react'
 import iconLight from '@/assets/image/icon_light.svg?react'
-import LogoSvg from '@/assets/image/logo.svg?react'
 import { BaseErrorBoundary } from '@/components/base'
 import { LayoutItem } from '@/components/layout/layout-item'
 import { LayoutTraffic } from '@/components/layout/layout-traffic'
@@ -93,6 +92,7 @@ const SortableNavMenuItem = ({ item, label }: SortableNavMenuItemProps) => {
     <LayoutItem
       to={item.path}
       icon={item.icon}
+      badge={item.path === '/process-proxy' ? '即将上线' : undefined}
       sortable={{
         setNodeRef,
         attributes,
@@ -208,7 +208,7 @@ const Layout = () => {
 
   const customTitlebar = useMemo(
     () =>
-      !decorated ? (
+      decorated === false ? (
         <div className="the_titlebar">
           <div
             className="the_titlebar-drag-region"
@@ -251,12 +251,11 @@ const Layout = () => {
           height: '100vh',
           background: mode === 'light' ? '#fff' : '#181a1b',
           transition: 'background 0.2s',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
           color: mode === 'light' ? '#333' : '#fff',
         }}
-      ></div>
+      >
+        {customTitlebar}
+      </div>
     )
   }
 
@@ -319,7 +318,9 @@ const Layout = () => {
                 style={{
                   height: '27px',
                   display: 'flex',
-                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  justifyContent: 'flex-start',
+                  gap: '4px',
                 }}
               >
                 <SvgIcon
@@ -333,7 +334,63 @@ const Layout = () => {
                   }}
                   inheritViewBox
                 />
-                <LogoSvg fill={isDark ? 'white' : 'black'} />
+                {!navCollapsed && (
+                  <Box
+                    className="nyxelen-lockup"
+                    sx={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'center',
+                      ml: 0.5,
+                      lineHeight: 1,
+                      userSelect: 'none',
+                      '@keyframes nyxLockupIn': {
+                        '0%': { opacity: 0, transform: 'translateX(-3px)' },
+                        '100%': { opacity: 1, transform: 'translateX(0)' },
+                      },
+                      animation: 'nyxLockupIn .55s cubic-bezier(.2,.7,.2,1) both',
+                    }}
+                  >
+                    <Box
+                      component="span"
+                      sx={(theme) => ({
+                        fontFamily: "'Manrope', 'Segoe UI', system-ui, sans-serif",
+                        fontSize: 13.5,
+                        fontWeight: 800,
+                        letterSpacing: '2px',
+                        color: theme.palette.text.primary,
+                        lineHeight: 1.1,
+                        transition: 'letter-spacing .4s cubic-bezier(.2,.7,.2,1), color .4s ease',
+                        '.the-logo:hover &': {
+                          letterSpacing: '3px',
+                          color: theme.palette.primary.main,
+                        },
+                      })}
+                    >
+                      NYXELEN
+                    </Box>
+                    <Box
+                      component="span"
+                      sx={(theme) => ({
+                        fontFamily: "'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif",
+                        fontSize: 9.5,
+                        fontWeight: 500,
+                        letterSpacing: '2.5px',
+                        color: theme.palette.text.secondary,
+                        opacity: 0.65,
+                        lineHeight: 1.1,
+                        mt: '2px',
+                        transition: 'opacity .4s ease, letter-spacing .4s cubic-bezier(.2,.7,.2,1)',
+                        '.the-logo:hover &': {
+                          opacity: 0.95,
+                          letterSpacing: '3.5px',
+                        },
+                      })}
+                    >
+                      隐枢
+                    </Box>
+                  </Box>
+                )}
               </div>
               <UpdateButton className="the-newbtn" />
             </div>
@@ -398,7 +455,7 @@ const Layout = () => {
                     return null
                   }
                   return (
-                    <LayoutItem key={item.path} to={item.path} icon={item.icon}>
+                    <LayoutItem key={item.path} to={item.path} icon={item.icon} badge={item.path === '/process-proxy' ? '即将上线' : undefined}>
                       {t(item.label)}
                     </LayoutItem>
                   )

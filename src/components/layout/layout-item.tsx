@@ -3,6 +3,7 @@ import type {
   DraggableSyntheticListeners,
 } from '@dnd-kit/core'
 import {
+  Box,
   alpha,
   ListItem,
   ListItemButton,
@@ -30,9 +31,10 @@ interface Props {
   icon: ReactNode[]
   sortable?: SortableProps
   onPreload?: () => Promise<unknown>
+  badge?: string
 }
 export const LayoutItem = (props: Props) => {
-  const { to, children, icon, sortable, onPreload } = props
+  const { to, children, icon, sortable, onPreload, badge } = props
   const { verge } = useVerge()
   const { menu_icon } = verge ?? {}
   const navCollapsed = verge?.collapse_navbar ?? false
@@ -83,8 +85,10 @@ export const LayoutItem = (props: Props) => {
             paddingLeft: 1,
             paddingRight: 1,
             marginRight: 1.25,
-            cursor: draggable ? 'grab' : 'pointer',
+            position: 'relative',
+              cursor: draggable ? 'grab' : 'pointer',
             '&:active': draggable ? { cursor: 'grabbing' } : {},
+              '&:hover .nav-badge': { filter: 'brightness(1.25)' },
             '& .MuiListItemText-primary': {
               color: 'text.primary',
               fontWeight: '700',
@@ -133,7 +137,44 @@ export const LayoutItem = (props: Props) => {
           }}
           primary={children}
         />
-      </ListItemButton>
+      {badge && (
+              <Box
+                className="nav-badge"
+                aria-label={badge}
+                sx={(theme) => ({
+                  position: 'absolute',
+                  top: -4,
+                  right: navCollapsed ? 10 : 8,
+                  zIndex: 3,
+                  pointerEvents: 'none',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  height: navCollapsed ? 8 : 15,
+                  minWidth: navCollapsed ? 8 : 0,
+                  px: navCollapsed ? 0 : 0.7,
+                  borderRadius: navCollapsed ? '50%' : 2,
+                  background: navCollapsed
+                    ? theme.palette.primary.main
+                    : `linear-gradient(135deg, ${theme.palette.primary.main}, ${alpha(theme.palette.primary.main, 0.72)})`,
+                  color: '#fff',
+                  fontSize: 9,
+                  fontWeight: 800,
+                  letterSpacing: 0.3,
+                  lineHeight: 1,
+                  whiteSpace: 'nowrap',
+                  boxShadow: `0 0 0 2px ${theme.palette.background.paper}, 0 2px 7px ${alpha(theme.palette.primary.main, 0.55)}`,
+                  '@keyframes navBadgePulse': {
+                    '0%, 100%': { transform: 'scale(1)', opacity: 1 },
+                    '50%': { transform: 'scale(1.14)', opacity: 0.8 },
+                  },
+                  animation: 'navBadgePulse 2.2s ease-in-out infinite',
+                })}
+              >
+                {navCollapsed ? null : badge}
+              </Box>
+            )}
+        </ListItemButton>
     </ListItem>
   )
 }
