@@ -93,7 +93,7 @@ const SortableNavMenuItem = ({ item, label }: SortableNavMenuItemProps) => {
     <LayoutItem
       to={item.path}
       icon={item.icon}
-      badge={item.path === '/process-proxy' ? '即将上线' : undefined}
+      badge={undefined}
       sortable={{
         setNodeRef,
         attributes,
@@ -457,7 +457,7 @@ const Layout = () => {
                     return null
                   }
                   return (
-                    <LayoutItem key={item.path} to={item.path} icon={item.icon} badge={item.path === '/process-proxy' ? '即将上线' : undefined}>
+                    <LayoutItem key={item.path} to={item.path} icon={item.icon} badge={undefined}>
                       {t(item.label)}
                     </LayoutItem>
                   )

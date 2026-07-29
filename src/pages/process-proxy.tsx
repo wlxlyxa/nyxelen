@@ -1,10 +1,19 @@
-import { AccountTreeRounded, CheckCircleRounded, ClearAllRounded, DnsRounded, RefreshRounded } from '@mui/icons-material'
+import {
+  AccountTreeRounded,
+  CheckCircleRounded,
+  ClearAllRounded,
+  DnsRounded,
+  KeyboardArrowRightRounded,
+  RefreshRounded,
+} from '@mui/icons-material'
 import {
   Alert,
   Box,
   Chip,
   CircularProgress,
+  Collapse,
   IconButton,
+  ListSubheader,
   MenuItem,
   Select,
   Table,
@@ -16,10 +25,11 @@ import {
   Typography,
 } from '@mui/material'
 import { invoke } from '@tauri-apps/api/core'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { BasePage } from '@/components/base'
 import { EnhancedCard } from '@/components/home/enhanced-card'
+import { useProxiesData } from '@/providers/app-data-context'
 
 interface ProcessInfo {
   pid: number
@@ -28,15 +38,13 @@ interface ProcessInfo {
   connections: number
 }
 
-const POLICY_OPTIONS = [
+const FIXED_OPTIONS = [
   { value: '__global__', label: '跟随全局' },
   { value: 'DIRECT', label: '直连' },
-  { value: 'PROXY', label: '代理' },
   { value: 'REJECT', label: '拦截' },
 ]
-
-// PROXY 映射到项目默认代理策略组（tmpl.rs 里的「节点选择」）；DIRECT/REJECT 是 mihomo 内置
-const policyToTarget = (v: string) => (v === 'PROXY' ? '节点选择' : v)
+const GROUP_TYPES = ['Selector', 'URLTest', 'Fallback', 'LoadBalance']
+const BUILTIN_GROUPS = ['GLOBAL', 'DIRECT', 'REJECT', 'PASS', 'COMPATIBLE']
 
 const STORE_KEY = 'nyxelen_process_policies'
 const readStore = (): Record<string, string> => {
@@ -55,6 +63,8 @@ const writeStore = (v: Record<string, string>) => {
   }
 }
 
+const REFRESH_MS = 12000
+
 const ProcessProxyPage = () => {
   const [processes, setProcesses] = useState<ProcessInfo[]>([])
   const [loading, setLoading] = useState(false)
@@ -63,7 +73,30 @@ const ProcessProxyPage = () => {
   const [applying, setApplying] = useState(false)
   const [applyError, setApplyError] = useState<string | null>(null)
   const [appliedCount, setAppliedCount] = useState<number | null>(null)
-  const firstRun = useRef(true)
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({})
+  // 首挂载跳过注入：规则已在 verge 落盘、启动时已合成进 mihomo，切回页面不该重注入
+  const mountedRef = useRef(false)
+
+  const { proxies, isProxiesPending } = useProxiesData()
+
+  const proxyGroups = useMemo(() => {
+    if (!proxies) return [] as string[]
+    return Object.entries(proxies as Record<string, { type?: string }>)
+      .filter(([name, item]) => GROUP_TYPES.includes(item?.type ?? '') && !BUILTIN_GROUPS.includes(name))
+      .map(([name]) => name)
+  }, [proxies])
+
+  // 旧 localStorage 残留的 'PROXY' 值 → 迁移成第一个真实组名
+  useEffect(() => {
+    if (proxyGroups.length === 0) return
+    setPolicies((prev) => {
+      if (!Object.values(prev).includes('PROXY')) return prev
+      const next: Record<string, string> = {}
+      for (const [k, v] of Object.entries(prev)) next[k] = v === 'PROXY' ? proxyGroups[0] : v
+      writeStore(next)
+      return next
+    })
+  }, [proxyGroups])
 
   const setPolicy = (name: string, value: string) => {
     setPolicies((prev) => {
@@ -80,11 +113,54 @@ const ProcessProxyPage = () => {
     [policies],
   )
 
-  // policies 一变 → 防抖 → 存进 verge + 触发 enhance 让规则真生效
+  const groups = useMemo(() => {
+    const map = new Map<string, ProcessInfo[]>()
+    for (const p of processes) {
+      const arr = map.get(p.name)
+      if (arr) arr.push(p)
+      else map.set(p.name, [p])
+    }
+    return Array.from(map.entries())
+      .map(([name, instances]) => ({
+        name,
+        instances,
+        totalConn: instances.reduce((s, x) => s + x.connections, 0),
+      }))
+      .sort((a, b) => b.totalConn - a.totalConn)
+  }, [processes])
+
+  const loadProcesses = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true)
+    setListError(null)
+    try {
+      setProcesses(await invoke<ProcessInfo[]>('get_running_processes'))
+    } catch (e) {
+      if (!silent) setListError(String(e))
+    } finally {
+      if (!silent) setLoading(false)
+    }
+  }, [])
+
   useEffect(() => {
+    loadProcesses(false)
+  }, [loadProcesses])
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (!document.hidden) loadProcesses(true)
+    }, REFRESH_MS)
+    return () => clearInterval(id)
+  }, [loadProcesses])
+
+  // policies 变化 → 注入；但首挂载跳过（用户没操作就不该有动静）
+  useEffect(() => {
+    if (!mountedRef.current) {
+      mountedRef.current = true
+      return
+    }
     const rules = Object.entries(policies)
-      .filter(([_, v]) => v && v !== '__global__')
-      .map(([name, v]) => `PROCESS-NAME,${name},${policyToTarget(v)}`)
+      .filter(([_, v]) => v && v !== '__global__' && v !== 'PROXY')
+      .map(([name, v]) => `PROCESS-NAME,${name},${v}`)
     const timer = setTimeout(
       async () => {
         setApplying(true)
@@ -99,37 +175,22 @@ const ProcessProxyPage = () => {
           setApplying(false)
         }
       },
-      firstRun.current ? 0 : 400,
+      400,
     )
-    firstRun.current = false
     return () => clearTimeout(timer)
   }, [policies])
 
-  const loadProcesses = async () => {
-    setLoading(true)
-    setListError(null)
-    try {
-      setProcesses(await invoke<ProcessInfo[]>('get_running_processes'))
-    } catch (e) {
-      setListError(String(e))
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    loadProcesses()
-  }, [])
+  const toggleExpand = (name: string) => setExpanded((prev) => ({ ...prev, [name]: !prev[name] }))
 
   return (
     <BasePage title="进程代理" contentStyle={{ padding: 2 }}>
       <EnhancedCard title="进程代理 · 按程序分流" icon={<AccountTreeRounded />} iconColor="primary">
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2, pt: 2, gap: 1 }}>
           <Typography variant="body2" sx={{ opacity: 0.72 }}>
-            为每个程序单独指定走代理还是直连，规则按进程名生效、优先于域名规则。
+            为每个程序单独指定走直连、拦截或某个代理组，规则按进程名生效、优先于域名规则。同名多实例已合并，点开可看每个进程。
           </Typography>
-          <Tooltip title="刷新进程列表">
-            <IconButton size="small" onClick={loadProcesses} disabled={loading}>
+          <Tooltip title="刷新进程列表（每 12 秒自动静默刷新）">
+            <IconButton size="small" onClick={() => loadProcesses(false)} disabled={loading}>
               <RefreshRounded fontSize="small" />
             </IconButton>
           </Tooltip>
@@ -145,9 +206,9 @@ const ProcessProxyPage = () => {
             icon={
               applying ? (
                 <CircularProgress size={16} sx={{ mt: 0.25 }} />
-              ) : appliedCount !== null && !applyError ? (
+              ) : applyError ? undefined : (
                 <CheckCircleRounded />
-              ) : undefined
+              )
             }
             sx={{ mx: 2, mt: 1.5 }}
             action={
@@ -189,7 +250,7 @@ const ProcessProxyPage = () => {
             <Alert severity="error" sx={{ mx: 1 }}>
               {listError}
             </Alert>
-          ) : processes.length === 0 ? (
+          ) : groups.length === 0 ? (
             <Box sx={{ textAlign: 'center', py: 6, opacity: 0.5 }}>
               <DnsRounded sx={{ fontSize: 40, mb: 1 }} />
               <Typography variant="body2">当前没有程序在联网</Typography>
@@ -199,68 +260,131 @@ const ProcessProxyPage = () => {
               <TableHead>
                 <TableRow>
                   <TableCell>程序</TableCell>
-                  <TableCell align="center">PID</TableCell>
+                  <TableCell align="center">实例</TableCell>
                   <TableCell align="center">连接数</TableCell>
                   <TableCell align="right">走哪条路</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {processes.map((p) => {
-                  const chosen = policies[p.name] && policies[p.name] !== '__global__'
-                  return (
-                    <TableRow
-                      key={p.pid}
-                      hover
-                      sx={{
-                        transition: 'background .18s ease, box-shadow .18s ease',
-                        ...(chosen && {
-                          boxShadow: 'inset 3px 0 0 0',
-                          boxShadowColor: 'success.main',
-                          bgcolor: (t) => `${t.palette.success.main}12`,
-                        }),
-                      }}
-                    >
+                {groups.flatMap((g) => {
+                  const chosen = policies[g.name] && policies[g.name] !== '__global__'
+                  const multi = g.instances.length > 1
+                  const open = !!expanded[g.name]
+                  const rawValue = policies[g.name] ?? '__global__'
+                  const displayValue = rawValue === 'PROXY' ? (proxyGroups[0] ?? '__global__') : rawValue
+                  const chosenSx = chosen
+                    ? {
+                        boxShadow: 'inset 3px 0 0 0',
+                        boxShadowColor: 'success.main',
+                        bgcolor: (t: any) => `${t.palette.success.main}12`,
+                      }
+                    : {}
+                  const mainRow = (
+                    <TableRow key={g.name} hover sx={{ transition: 'background .18s ease, box-shadow .18s ease', ...chosenSx }}>
                       <TableCell>
-                        <Tooltip title={p.path} arrow>
-                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                            {p.name}
-                          </Typography>
-                        </Tooltip>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                          <IconButton
+                            size="small"
+                            disabled={!multi}
+                            onClick={() => toggleExpand(g.name)}
+                            sx={{
+                              opacity: multi ? 1 : 0.25,
+                              transform: open ? 'rotate(90deg)' : 'rotate(0deg)',
+                              transition: 'transform .2s ease',
+                            }}
+                          >
+                            <KeyboardArrowRightRounded sx={{ fontSize: 18 }} />
+                          </IconButton>
+                          <Tooltip title={g.instances[0]?.path} arrow>
+                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                              {g.name}
+                            </Typography>
+                          </Tooltip>
+                        </Box>
                       </TableCell>
                       <TableCell align="center">
-                        <Typography variant="caption" sx={{ opacity: 0.6 }}>
-                          {p.pid}
-                        </Typography>
+                        {multi ? (
+                          <Chip label={`×${g.instances.length}`} size="small" variant="outlined" sx={{ fontSize: 11, height: 20 }} />
+                        ) : (
+                          <Typography variant="caption" sx={{ opacity: 0.4 }}>
+                            1
+                          </Typography>
+                        )}
                       </TableCell>
                       <TableCell align="center">
                         <Chip
-                          label={p.connections}
+                          label={g.totalConn}
                           size="small"
-                          color={p.connections > 5 ? 'primary' : 'default'}
-                          variant={p.connections > 5 ? 'filled' : 'outlined'}
+                          color={g.totalConn > 5 ? 'primary' : 'default'}
+                          variant={g.totalConn > 5 ? 'filled' : 'outlined'}
                         />
                       </TableCell>
                       <TableCell align="right">
                         <Select
                           size="small"
-                          value={policies[p.name] ?? '__global__'}
-                          onChange={(e) => setPolicy(p.name, e.target.value)}
+                          value={displayValue}
+                          onChange={(e) => setPolicy(g.name, e.target.value)}
                           sx={{
-                            minWidth: 110,
+                            minWidth: 130,
                             fontSize: 13,
                             transition: 'color .18s ease',
                             ...(chosen && { color: 'success.main', fontWeight: 700 }),
                           }}
                         >
-                          {POLICY_OPTIONS.map((opt) => (
+                          {FIXED_OPTIONS.map((opt) => (
                             <MenuItem key={opt.value} value={opt.value} sx={{ fontSize: 13 }}>
                               {opt.label}
                             </MenuItem>
                           ))}
+                          {isProxiesPending ? (
+                            <MenuItem disabled sx={{ fontSize: 12, opacity: 0.5 }}>
+                              加载代理组…
+                            </MenuItem>
+                          ) : (
+                            proxyGroups.length > 0 && [
+                              <ListSubheader key="__hdr" sx={{ fontSize: 11, lineHeight: '26px' }}>
+                                代理组
+                              </ListSubheader>,
+                              ...proxyGroups.map((grp) => (
+                                <MenuItem key={grp} value={grp} sx={{ fontSize: 13 }}>
+                                  {grp}
+                                </MenuItem>
+                              )),
+                            ]
+                          )}
                         </Select>
                       </TableCell>
                     </TableRow>
                   )
+                  const detailRows = multi ? (
+                    <TableRow key={`${g.name}__detail`}>
+                      <TableCell colSpan={4} sx={{ p: 0, border: 0 }}>
+                        <Collapse in={open} timeout={200} unmountOnExit>
+                          <Box sx={{ pl: 6, pr: 2, py: 0.5, bgcolor: (t: any) => `${t.palette.background.default}80` }}>
+                            {g.instances.map((inst) => (
+                              <Box
+                                key={inst.pid}
+                                sx={{ display: 'flex', alignItems: 'center', gap: 2, py: 0.4, fontSize: 12, opacity: 0.7 }}
+                              >
+                                <Typography variant="caption" sx={{ minWidth: 56, opacity: 0.6 }}>
+                                  PID {inst.pid}
+                                </Typography>
+                                <Typography
+                                  variant="caption"
+                                  sx={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                                  title={inst.path}
+                                >
+                                  {inst.path}
+                                </Typography>
+                                <Chip label={`${inst.connections} 连接`} size="small" variant="outlined" sx={{ fontSize: 10, height: 18 }} />
+                              </Box>
+                            ))}
+                          </Box>
+                        </Collapse>
+                      </TableCell>
+                    </TableRow>
+                  ) : null
+                  return detailRows ? [mainRow, detailRows] : [mainRow]
                 })}
               </TableBody>
             </Table>
