@@ -43,12 +43,9 @@ const FIXED_OPTIONS = [
   { value: 'DIRECT', label: '直连' },
   { value: 'REJECT', label: '拦截' },
 ]
-// 下拉里"代理组"那一栏的标题。若与你某个真实组名重名看着别扭，改这一行即可（如 '走哪个节点'）
-const GROUP_HEADER_LABEL = '节点选择'
+const GROUP_HEADER_LABEL = '节点切换'
 const GROUP_TYPES = ['Selector', 'URLTest', 'Fallback', 'LoadBalance']
-// 全小写比较：GLOBAL 是 mihomo 虚拟组，rules 不可引用，必须挡在下拉外
 const BUILTIN_GROUPS = ['global', 'direct', 'reject', 'pass', 'compatible']
-// 纵深防御：这些名字即使漏网，也绝不作为进程规则目标
 const NOT_TARGET = new Set(['global', 'pass', 'compatible'])
 
 const STORE_KEY = 'nyxelen_process_policies'
@@ -77,7 +74,6 @@ const buildRules = (pols: Record<string, string>) =>
 
 const REFRESH_MS = 12000
 
-// 首字母头像：程序名 hash → 稳定色相（定义在组件前，避免 const 无 hoisting 的坑）
 const stripExt = (name: string) => name.replace(/\.(exe|app)$/i, '').toLowerCase()
 const avatarHue = (name: string) => {
   const key = stripExt(name)
@@ -107,18 +103,24 @@ const ProcessProxyPage = () => {
   const policiesRef = useRef<Record<string, string>>(policies)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const { proxies, isProxiesPending } = useProxiesData()
+  // 官方取组方式：useProxiesData().proxies 是 { groups, proxies, global }，组在 .groups 数组
+  const { proxies: proxiesData, isProxiesPending } = useProxiesData()
 
   const proxyGroups = useMemo(() => {
-    if (!proxies) return [] as string[]
-    return Object.entries(proxies as Record<string, { type?: string }>)
-      .filter(
-        ([name, item]) =>
-          GROUP_TYPES.includes(item?.type ?? '') &&
-          !BUILTIN_GROUPS.includes(name.toLowerCase()),
+    const groups = (proxiesData as any)?.groups
+    if (!Array.isArray(groups)) return [] as string[]
+    const names = groups
+      .filter((g: any) => GROUP_TYPES.includes(g?.type ?? ''))
+      .map((g: any) => g.name as string)
+      .filter((n: string) => n && !BUILTIN_GROUPS.includes(n.toLowerCase()))
+    if (names.length === 0 && groups.length > 0) {
+      console.log(
+        '[process-proxy] groups 非空但筛出 0 个，sample types:',
+        groups.slice(0, 4).map((g: any) => g?.type),
       )
-      .map(([name]) => name)
-  }, [proxies])
+    }
+    return names
+  }, [proxiesData])
 
   const applyRules = useCallback(async (rules: string[], silent: boolean) => {
     if (!silent) setApplying(true)
@@ -135,7 +137,7 @@ const ProcessProxyPage = () => {
     }
   }, [])
 
-  // 代理组加载完成后清洗毒数据（global/空/过期旧组名/PROXY 迁移），并静默重应用干净规则清除 verge 毒
+  // 等代理组加载完再清洗：合法集合含 DIRECT/REJECT/真实组名，不会误清你选的组；顺手治愈 global/PROXY 毒数据
   useEffect(() => {
     if (isProxiesPending) return
     const valid = new Set<string>(['DIRECT', 'REJECT', ...proxyGroups])
@@ -153,13 +155,12 @@ const ProcessProxyPage = () => {
         continue
       }
       if (valid.has(v)) next[k] = v
-      else changed = true // 毒数据：当前配置引用不了，丢弃
+      else changed = true
     }
     if (!changed) return
     policiesRef.current = next
     writeStore(next)
     setPolicies(next)
-    console.log('[process-proxy] SANITIZE policies ->', next)
     applyRules(buildRules(next), true)
   }, [isProxiesPending, proxyGroups, applyRules])
 
@@ -170,7 +171,6 @@ const ProcessProxyPage = () => {
     policiesRef.current = next
     writeStore(next)
     setPolicies(next)
-    console.log('[process-proxy] setPolicy INJECT', name, '->', value)
     if (debounceRef.current) clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(() => applyRules(buildRules(next), false), 400)
   }
