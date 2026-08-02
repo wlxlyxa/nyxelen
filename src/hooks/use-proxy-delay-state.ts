@@ -1,5 +1,5 @@
 import { useLockFn } from 'ahooks'
-import { useCallback, useEffect, useReducer } from 'react'
+import { useCallback, useEffect, useMemo, useReducer } from 'react'
 
 import { useVerge } from '@/hooks/use-verge'
 import delayManager, { type DelayUpdate } from '@/services/delay'
@@ -21,6 +21,7 @@ export interface UseProxyDelayState {
   delayValue: number
   isPreset: boolean
   timeout: number
+  consecutiveTimeouts: number
   onDelay: () => Promise<void>
 }
 
@@ -77,11 +78,26 @@ export function useProxyDelayState(
     setDelayState(await delayManager.checkDelay(proxy.name, groupName, timeout))
   })
 
+    // 块1：从 history 末尾数连续 timeout（delay===0 或 >=timeout）的条数。
+  // 单次 timeout 可能只是代理模式下测速受干扰，不冤枉好线路；连续多次才判不可用。
+  const consecutiveTimeouts = useMemo(() => {
+    const history = proxy.history
+    if (!history || history.length === 0) return 0
+    let count = 0
+    for (let i = history.length - 1; i >= 0; i--) {
+      const d = history[i].delay
+      if (d === 0 || d >= timeout) count++
+      else break
+    }
+    return count
+  }, [proxy.history, timeout])
+
   return {
     delayState,
     delayValue: delayState.delay,
     isPreset,
     timeout,
+    consecutiveTimeouts,
     onDelay,
   }
 }

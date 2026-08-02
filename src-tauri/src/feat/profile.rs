@@ -205,7 +205,7 @@ pub async fn update_profile(
 
     if should_refresh {
         logging!(info, Type::Config, "[订阅更新] 更新内核配置");
-        match CoreManager::global().update_config_with_force(is_mannual_trigger).await {
+        match update_config_fast_proxies().await {
             Ok(outcome) if outcome.is_valid() => {
                 logging!(info, Type::Config, "[订阅更新] 更新成功");
                 handle::Handle::refresh_clash();
@@ -227,6 +227,35 @@ pub async fn update_profile(
     }
 
     Ok(())
+}
+
+
+/// 导入订阅·接近真零延迟快速通道（第二步）：enhance 瘦身只合并 proxies，
+/// 不跑脚本/DNS/rules/providers，patch_base_config 只 patch proxies（部分更新）。
+/// DNS/rules/proxy-groups 一概不碰，防泄漏纹丝不动。patch 失败兜底完整重载。
+async fn update_config_fast_proxies() -> Result<ValidationOutcome> {
+    let new_proxies = crate::enhance::enhance_proxies_only().await?;
+    crate::config::Config::runtime().await.edit_draft(|d| {
+        if let Some(config) = d.config.as_mut() {
+            config.insert("proxies".into(), serde_yaml_ng::Value::Sequence(new_proxies.clone()));
+        }
+    });
+    let proxies_json = serde_json::to_value(&new_proxies).map_err(|e| anyhow::anyhow!(e.to_string()))?;
+    let json_value = serde_json::json!({ "proxies": proxies_json });
+    match crate::handle::Handle::mihomo()
+        .await
+        .patch_base_config(&json_value)
+        .await
+    {
+        Ok(_) => {
+            crate::config::Config::generate_file(crate::config::ConfigType::Run).await?;
+            Ok(ValidationOutcome::Valid)
+        }
+        Err(e) => {
+            logging!(warn, Type::Config, "patch_base_config 部分更新失败，兜底完整重载: {e}");
+            CoreManager::global().update_config_forced().await
+        }
+    }
 }
 
 /// 增强配置

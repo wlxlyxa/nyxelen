@@ -7,7 +7,6 @@ import {
   HistoryOutlined,
   RefreshOutlined,
   ShieldOutlined,
-  SpeedOutlined,
 } from '@mui/icons-material'
 import {
   Box,
@@ -29,8 +28,7 @@ import { CurrentProxyCard } from '@/components/home/current-proxy-card'
 import { EnhancedCard } from '@/components/home/enhanced-card'
 import { IpInfoCard } from '@/components/home/ip-info-card'
 import { ProxyTunCard } from '@/components/home/proxy-tun-card'
-import { EnhancedTrafficStats } from '@/components/home/enhanced-traffic-stats'
-import { PhysicalNicLockCard } from '@/components/home/physical-nic-lock-card'
+import { TestCard } from '@/components/home/test-card'
 import { useVerge } from '@/hooks/use-verge'
 import { entry_lightweight_mode } from '@/services/cmds'
 import { showNotice } from '@/services/notice-service'
@@ -261,8 +259,7 @@ const HomePage = () => {
       (smhnrFinal ? 1 : 0) +
       (ipv6Val ? 1 : 0)
     setBusy(false)
-    const ok = targetOn ? realOn === TOTAL : realOn === 0
-    if (ok) {
+    if (realOn === TOTAL) {
       showNotice.success(targetOn ? `已一键开启 ${TOTAL} 项常规防护` : `已一键关闭 ${TOTAL} 项常规防护`)
     } else if (targetOn) {
       showNotice.error(`已处理，但仅 ${realOn}/${TOTAL} 项生效——未生效项可能需要管理员权限，或系统尚未刷新，可稍后点右上角刷新确认`)
@@ -507,18 +504,13 @@ const HomePage = () => {
           </EnhancedCard>
         </Grid>
         <Grid size={6}>
-          <PhysicalNicLockCard />
+          <CurrentProxyCard />
         </Grid>
         <Grid size={6}>
           <IpInfoCard />
         </Grid>
-        <Grid size={6}>
-          <CurrentProxyCard />
-        </Grid>
         <Grid size={12}>
-          <EnhancedCard title="流量统计" icon={<SpeedOutlined />} iconColor="info">
-            <EnhancedTrafficStats />
-          </EnhancedCard>
+          <TestCard />
         </Grid>
       </Grid>
     </BasePage>

@@ -17,11 +17,23 @@ pub struct IRuntime {
 }
 
 impl IRuntime {
+    /// 取当前运行时配置的 rules（供进程代理快速通道复用，只重建 rules 不跑整个 enhance）。
+    pub fn rules(&self) -> Vec<std::string::String> {
+        self.config
+            .as_ref()
+            .and_then(|c| c.get("rules"))
+            .and_then(|v| v.as_sequence())
+            .map(|seq| seq.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect())
+            .unwrap_or_default()
+    }
+
+
     #[inline]
     pub fn new() -> Self {
         Self::default()
     }
 
+    
     // 这里只更改 allow-lan | ipv6 | log-level | tun | tunnels
     #[inline]
     pub fn patch_config(&mut self, patch: &Mapping) {
@@ -56,6 +68,13 @@ impl IRuntime {
         }
     }
 
+    /// 导入即用：当前运行时配置里所有 socks5 节点的上游（裸 host），供系统代理 bypass 排除。
+pub fn socks5_upstreams(&self) -> Vec<std::string::String> {
+        self.config
+            .as_ref()
+            .map(crate::enhance::collect_socks5_upstreams)
+            .unwrap_or_default()
+    }
     /// 更新链式代理配置
     ///
     /// 该函数更新 `proxies` 和 `proxy-groups` 配置，并处理链式代理的修改或(传入 None )删除。

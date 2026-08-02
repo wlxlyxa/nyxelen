@@ -59,6 +59,18 @@ pub async fn toggle_tun_mode(not_save_file: Option<bool>) -> bool {
     {
         Ok(_) => {
             handle::Handle::refresh_verge();
+            // 块2-A：关 TUN 后，后台等 Meta 虚拟网卡消失；超时仍残留则尝试强制禁用。
+            // 后台跑、不阻塞 toggle 返回（用户关 TUN 不卡）。
+            if !enable {
+                tokio::spawn(async {
+                    wait_for_tun_adapter_gone().await;
+                    if tun_adapter_present() {
+                        if let Err(e) = force_release_tun_adapter().await {
+                            logging!(warn, Type::ProxyMode, "TUN 虚拟网卡残留，强制释放失败（可能需管理员权限）: {e}");
+                        }
+                    }
+                });
+            }
             enable
         }
         Err(err) => {
@@ -66,6 +78,76 @@ pub async fn toggle_tun_mode(not_save_file: Option<bool>) -> bool {
             current
         }
     }
+}
+
+/// 检测 Meta（Meta Tunnel）虚拟网卡是否仍在（Status Up）。
+/// 按 InterfaceDescription 精确匹配 "Meta Tunnel"，不误伤其他网卡。
+fn tun_adapter_present() -> bool {
+    use std::os::windows::process::CommandExt;
+    use std::process::Command;
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    let out = Command::new("powershell")
+        .args([
+            "-NoProfile",
+            "-NonInteractive",
+            "-Command",
+            "(Get-NetAdapter | Where-Object { $_.Status -eq 'Up' -and $_.InterfaceDescription -like '*Meta Tunnel*' }).Count",
+        ])
+        .creation_flags(CREATE_NO_WINDOW)
+        .output();
+    match out {
+        Ok(o) => String::from_utf8_lossy(&o.stdout)
+            .trim()
+            .parse::<i32>()
+            .map(|n| n > 0)
+            .unwrap_or(false),
+        Err(_) => false,
+    }
+}
+
+/// 关 TUN 后轮询等 Meta 消失（最多约 4 秒：8 次 × 500ms）。
+async fn wait_for_tun_adapter_gone() {
+    for _ in 0..8 {
+        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+        if !tun_adapter_present() {
+            return;
+        }
+    }
+}
+
+/// 强制释放残留的 Meta 虚拟网卡：禁用它（只精确匹配 Meta Tunnel，可逆）。
+/// 需管理员权限；权限不足返回 Err（前端降级提示用户手动）。
+/// 注意：这是"禁用"(Down) 不是"删除"——设备仍在驱动里，但不再抓流量，套娃解除。
+async fn force_release_tun_adapter() -> Result<(), String> {
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    let script = "Get-NetAdapter | Where-Object { $_.InterfaceDescription -like '*Meta Tunnel*' } | Disable-NetAdapter -Confirm:$false -ErrorAction Stop";
+    let out = tokio::process::Command::new("powershell")
+        .args(["-NoProfile", "-NonInteractive", "-Command", script])
+        .creation_flags(CREATE_NO_WINDOW)
+        .output()
+        .await
+        .map_err(|e| format!("调用 PowerShell 失败: {e}"))?;
+    if out.status.success() {
+        Ok(())
+    } else {
+        Err(format!(
+            "禁用 Meta 网卡失败（可能需要管理员权限）: {}",
+            String::from_utf8_lossy(&out.stderr).trim()
+        ))
+    }
+}
+
+#[tauri::command]
+pub fn check_tun_adapter_present_cmd() -> bool {
+    tun_adapter_present()
+}
+
+#[tauri::command]
+pub async fn force_release_tun_adapter_cmd() -> Result<String, String> {
+    force_release_tun_adapter()
+        .await
+        .map(|_| "已强制释放 TUN 虚拟网卡".to_string())
 }
 
 /// Copy proxy environment variables to clipboard

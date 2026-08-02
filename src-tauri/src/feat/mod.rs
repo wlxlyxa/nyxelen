@@ -3,7 +3,7 @@ mod clash;
 mod config;
 mod icon;
 mod profile;
-mod proxy;
+pub mod proxy;
 mod window;
 
 // Re-export all functions from modules

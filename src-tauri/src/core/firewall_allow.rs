@@ -193,3 +193,13 @@ pub fn disable_physical_nic_lock() {
     remove_rule(PHYS_LOCK_ALLOW_PROXY);
     remove_rule(PHYS_LOCK_ALLOW_LAN);
 }
+
+
+/// 当前内核进程的可执行文件路径（供物理网卡锁 permit 白名单用）。内核未运行返回 None。
+pub fn current_core_exe_path() -> Option<String> {
+    let pid = CURRENT_CORE_PID.load(Ordering::Acquire);
+    if pid == 0 {
+        return None;
+    }
+    resolve_exe_path_by_pid(pid).ok()
+}

@@ -45,6 +45,37 @@ pub async fn patch_rule_providers(config: &mut Mapping) {
         return; // 没有 rule-providers 字段，不用处理
     };
 
+    // 望仔·本地化优先：本地 .mrs 已释放则强制 type:file、删 url/interval，
+    // mihomo 只读本地、本模块也不再联网探测（导入/更新秒加载的关键）。
+    // 在最后一道统一兜底，无论界面全局脚本写什么都被覆盖，无需用户改 UI。
+    if let Ok(app_home) = crate::utils::dirs::app_home_dir() {
+        for (_k, v) in providers.iter_mut() {
+            if let Some(m) = v.as_mapping_mut() {
+                let path_str = m
+                    .get(Value::String("path".into()))
+                    .and_then(|p| p.as_str())
+                    .map(|s| s.to_string());
+                if let Some(path_str) = path_str {
+                    let rel = path_str.strip_prefix("./").unwrap_or(&path_str);
+                    if app_home.join(rel).exists() {
+                        let mut new_m = Mapping::new();
+                        new_m.insert(Value::String("type".into()), Value::String("file".into()));
+                        if let Some(f) = m.get(Value::String("format".into())).cloned() {
+                            new_m.insert(Value::String("format".into()), f);
+                        }
+                        if let Some(b) = m.get(Value::String("behavior".into())).cloned() {
+                            new_m.insert(Value::String("behavior".into()), b);
+                        }
+                        if let Some(pv) = m.get(Value::String("path".into())).cloned() {
+                            new_m.insert(Value::String("path".into()), pv);
+                        }
+                        *m = new_m;
+                    }
+                }
+            }
+        }
+    }
+
     // 收集 (provider_key, original_url) 列表，避免边遍历边可变借用冲突
     let all_targets: Vec<(Value, String)> = providers
         .iter()

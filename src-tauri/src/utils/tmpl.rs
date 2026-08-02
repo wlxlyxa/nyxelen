@@ -13,14 +13,11 @@ profile:
 pub const ITEM_MERGE_EMPTY: &str = "# Profile Enhancement Merge Template for Clash Verge
 ";
 /// enhanced profile
-/// 望仔 · 默认全局脚本：DNS 防泄露 + 分流规则 + TUN 配置
+/// Nyxelen · 默认全局脚本：DNS 防泄露 + 分流规则 + TUN 配置
 /// 只要用户没有单独创建过 uid 为 "Script" 的全局脚本条目，
 /// 这份内容就会在每次构建配置时自动作为全局脚本套用。
 pub const ITEM_SCRIPT: &str = r#"// ==================== DNS 定义 ====================
 const koreanNameservers = [
-  "https://dns.dnsopts.net/dns-query",     // 韩国KT DoH
-  "https://168.126.63.1/dns-query"         // KT DoH备选
-];
 
 const domesticNameservers = [
   "https://223.5.5.5/dns-query",           // 阿里DoH
@@ -60,37 +57,36 @@ const dnsConfig = {
 
 // ==================== 规则集定义(MetaCubeX .mrs) ====================
 const RP = {
-  type: "http",
-  interval: 86400
+  type: "file"
 };
 
 const ruleProviders = {
-  private:    { ...RP, format:"mrs", behavior:"domain", url:"https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/private.mrs",            path:"./ruleset/metacubex/private.mrs" },
-  reject:     { ...RP, format:"mrs", behavior:"domain", url:"https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/reject.mrs",            path:"./ruleset/metacubex/reject.mrs" },
-  icloud:     { ...RP, format:"mrs", behavior:"domain", url:"https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/icloud.mrs",            path:"./ruleset/metacubex/icloud.mrs" },
-  apple:      { ...RP, format:"mrs", behavior:"domain", url:"https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/apple-cn.mrs",           path:"./ruleset/metacubex/apple-cn.mrs" },
-  google:     { ...RP, format:"mrs", behavior:"domain", url:"https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/google.mrs",             path:"./ruleset/metacubex/google.mrs" },
-  proxy:      { ...RP, format:"mrs", behavior:"domain", url:"https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/gfw.mrs",                path:"./ruleset/metacubex/gfw.mrs" },
-  direct:     { ...RP, format:"mrs", behavior:"domain", url:"https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/cn.mrs",                 path:"./ruleset/metacubex/cn.mrs" },
-  gfw:        { ...RP, format:"mrs", behavior:"domain", url:"https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/gfw.mrs",                path:"./ruleset/metacubex/gfw.mrs" },
-  tld_not_cn: { ...RP, format:"mrs", behavior:"domain", url:"https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/geolocation-!cn.mrs",    path:"./ruleset/metacubex/geolocation-!cn.mrs" },
-  telegram:   { ...RP, format:"mrs", behavior:"domain", url:"https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/telegram.mrs",           path:"./ruleset/metacubex/telegram.mrs" },
-  netflix:    { ...RP, format:"mrs", behavior:"domain", url:"https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/netflix.mrs",            path:"./ruleset/metacubex/netflix.mrs" },
-  youtube:    { ...RP, format:"mrs", behavior:"domain", url:"https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/youtube.mrs",            path:"./ruleset/metacubex/youtube.mrs" },
-  github:     { ...RP, format:"mrs", behavior:"domain", url:"https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/github.mrs",             path:"./ruleset/metacubex/github.mrs" },
-  onedrive:   { ...RP, format:"mrs", behavior:"domain", url:"https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/onedrive.mrs",           path:"./ruleset/metacubex/onedrive.mrs" },
-  microsoft:  { ...RP, format:"mrs", behavior:"domain", url:"https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/microsoft.mrs",          path:"./ruleset/metacubex/microsoft.mrs" },
-  tiktok:     { ...RP, format:"mrs", behavior:"domain", url:"https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/tiktok.mrs",             path:"./ruleset/metacubex/tiktok.mrs" },
-  ai:         { ...RP, format:"mrs", behavior:"domain", url:"https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/category-ai-!cn.mrs",    path:"./ruleset/metacubex/category-ai-!cn.mrs" },
-  bahamut:    { ...RP, format:"mrs", behavior:"domain", url:"https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/bahamut.mrs",            path:"./ruleset/metacubex/bahamut.mrs" },
-  spotify:    { ...RP, format:"mrs", behavior:"domain", url:"https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/spotify.mrs",            path:"./ruleset/metacubex/spotify.mrs" },
-  bilibilihmt:{ ...RP, format:"mrs", behavior:"domain", url:"https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geosite/bilibili-hmt.mrs",      path:"./ruleset/metacubex/bilibili-hmt.mrs" },
+  private:    { ...RP, format:"mrs", behavior:"domain",             path:"./ruleset/metacubex/private.mrs" },
+  reject:     { ...RP, format:"mrs", behavior:"domain",             path:"./ruleset/metacubex/reject.mrs" },
+  icloud:     { ...RP, format:"mrs", behavior:"domain",             path:"./ruleset/metacubex/icloud.mrs" },
+  apple:      { ...RP, format:"mrs", behavior:"domain",            path:"./ruleset/metacubex/apple-cn.mrs" },
+  google:     { ...RP, format:"mrs", behavior:"domain",              path:"./ruleset/metacubex/google.mrs" },
+  proxy:      { ...RP, format:"mrs", behavior:"domain",                 path:"./ruleset/metacubex/gfw.mrs" },
+  direct:     { ...RP, format:"mrs", behavior:"domain",                  path:"./ruleset/metacubex/cn.mrs" },
+  gfw:        { ...RP, format:"mrs", behavior:"domain",                 path:"./ruleset/metacubex/gfw.mrs" },
+  tld_not_cn: { ...RP, format:"mrs", behavior:"domain",     path:"./ruleset/metacubex/geolocation-!cn.mrs" },
+  telegram:   { ...RP, format:"mrs", behavior:"domain",            path:"./ruleset/metacubex/telegram.mrs" },
+  netflix:    { ...RP, format:"mrs", behavior:"domain",             path:"./ruleset/metacubex/netflix.mrs" },
+  youtube:    { ...RP, format:"mrs", behavior:"domain",             path:"./ruleset/metacubex/youtube.mrs" },
+  github:     { ...RP, format:"mrs", behavior:"domain",              path:"./ruleset/metacubex/github.mrs" },
+  onedrive:   { ...RP, format:"mrs", behavior:"domain",            path:"./ruleset/metacubex/onedrive.mrs" },
+  microsoft:  { ...RP, format:"mrs", behavior:"domain",           path:"./ruleset/metacubex/microsoft.mrs" },
+  tiktok:     { ...RP, format:"mrs", behavior:"domain",              path:"./ruleset/metacubex/tiktok.mrs" },
+  ai:         { ...RP, format:"mrs", behavior:"domain",     path:"./ruleset/metacubex/category-ai-!cn.mrs" },
+  bahamut:    { ...RP, format:"mrs", behavior:"domain",             path:"./ruleset/metacubex/bahamut.mrs" },
+  spotify:    { ...RP, format:"mrs", behavior:"domain",             path:"./ruleset/metacubex/spotify.mrs" },
+  bilibilihmt:{ ...RP, format:"mrs", behavior:"domain",       path:"./ruleset/metacubex/bilibili-hmt.mrs" },
 
   // IP-CIDR 规则集
-  cn_ip:      { ...RP, format:"mrs", behavior:"ipcidr", url:"https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geoip/cn.mrs",                  path:"./ruleset/metacubex/cn-ip.mrs" },
-  google_ip:  { ...RP, format:"mrs", behavior:"ipcidr", url:"https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geoip/google.mrs",              path:"./ruleset/metacubex/google-ip.mrs" },
-  telegram_ip:{ ...RP, format:"mrs", behavior:"ipcidr", url:"https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geoip/telegram.mrs",            path:"./ruleset/metacubex/telegram-ip.mrs" },
-  netflix_ip: { ...RP, format:"mrs", behavior:"ipcidr", url:"https://github.com/MetaCubeX/meta-rules-dat/raw/refs/heads/meta/geo/geoip/netflix.mrs",             path:"./ruleset/metacubex/netflix-ip.mrs" }
+  cn_ip:      { ...RP, format:"mrs", behavior:"ipcidr",                   path:"./ruleset/metacubex/cn-ip.mrs" },
+  google_ip:  { ...RP, format:"mrs", behavior:"ipcidr",               path:"./ruleset/metacubex/google-ip.mrs" },
+  telegram_ip:{ ...RP, format:"mrs", behavior:"ipcidr",             path:"./ruleset/metacubex/telegram-ip.mrs" },
+  netflix_ip: { ...RP, format:"mrs", behavior:"ipcidr",              path:"./ruleset/metacubex/netflix-ip.mrs" }
 };
 
 // ==================== 规则 ====================

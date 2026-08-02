@@ -67,7 +67,40 @@ impl Config {
         Self::init_runtime_config().await
     }
 
+/// 导入即用·秒加载：把打包进 resources 的 .mrs 释放到 mihomo 工作目录的
+/// ruleset/metacubex/，让 rule-provider（type: file）纯本地读、零下载。
+/// 每次启动用打包版本覆盖；释放失败静默跳过、不阻塞启动。
+fn release_preset_rulesets() {
+    let Ok(resource_dir) = crate::utils::dirs::app_resources_dir() else {
+        return;
+    };
+    let Ok(app_home) = dirs::app_home_dir() else {
+        return;
+    };
+    let target_dir = app_home.join("ruleset").join("metacubex");
+    if std::fs::create_dir_all(&target_dir).is_err() {
+        return;
+    }
+    let src_dir = resource_dir.join("rulesets").join("metacubex");
+    let src_dir = if src_dir.exists() {
+        src_dir
+    } else {
+        resource_dir.join("resources").join("rulesets").join("metacubex")
+    };
+    let Ok(entries) = std::fs::read_dir(&src_dir) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.extension().and_then(|e| e.to_str()) == Some("mrs") {
+            let _ = std::fs::copy(&path, target_dir.join(entry.file_name()));
+        }
+    }
+}
+
     pub async fn init_config_before_window() -> Result<()> {
+// 导入即用·秒加载：mihomo 启动前，把打包的 .mrs 规则集铺到工作目录。
+        Self::release_preset_rulesets();
         Self::ensure_default_profile_items().await?;
 
         let verge = Self::verge().await.latest_arc();

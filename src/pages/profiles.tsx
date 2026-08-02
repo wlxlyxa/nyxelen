@@ -1152,14 +1152,14 @@ const onAddManual = async function () {
       <ContentPasteRounded sx={{ fontSize: 23 }} />
     </Box>
     <Box sx={{ flex: 1, minWidth: 220 }}>
-      <Typography sx={{ fontWeight: 800, fontSize: 15, letterSpacing: -0.2, color: 'text.primary' }}>粘贴订阅或节点链接，一键导入</Typography>
-      <Typography sx={{ fontSize: 12.5, opacity: 0.66, mt: 0.3, lineHeight: 1.65 }}>支持任意协议，复制粘贴后点导入即可。内置防泄漏模块，首次导入约需 10 秒，加载完成前请稍候。</Typography>
+      <Typography sx={{ fontWeight: 800, fontSize: 15, letterSpacing: -0.2, color: 'text.primary' }}>粘贴订阅或节点链接，支持任意协议一键导入</Typography>
+      <Typography sx={{ fontSize: 12.5, opacity: 0.66, mt: 0.3, lineHeight: 1.65 }}>注:SOCKS5/HTTP(S)极易被墙，适合只玩游戏的用户。问题反馈请发送邮件到：email@nyxelen.com</Typography>
     </Box>
     <Button size="small" variant="contained" color="primary" startIcon={<LocalFireDepartmentRounded />} onClick={(e) => { e.stopPropagation(); onEnhance(true) }} sx={(theme) => ({ flexShrink: 0, borderRadius: 2, fontWeight: 700, textTransform: 'none', transition: 'transform .15s ease, box-shadow .2s ease', '&:hover': { transform: 'translateY(-1px)', boxShadow: `0 6px 16px ${alpha(theme.palette.primary.main, 0.35)}` } })}>激活节点</Button>
   </Box>
   <Box sx={{ position: 'relative', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 1, mt: 1.5 }}>
-    <Button size="small" variant="outlined" color="warning" startIcon={<TextSnippetOutlined />} onClick={() => setManualOpen(!manualOpen)} sx={(theme) => ({ borderRadius: 1.5, textTransform: 'none', fontWeight: 600, fontSize: 12.5, transition: 'transform .15s ease', '&:hover': { transform: 'translateY(-1px)' } })}>SOCKS5 / HTTP(S) 手动添加</Button>
-    <Box sx={(theme) => ({ display: 'inline-flex', alignItems: 'center', px: 1.25, py: 0.55, borderRadius: 1.5, background: alpha(theme.palette.text.secondary, 0.07), color: alpha(theme.palette.text.secondary, 0.82), fontSize: 12 })}>链接格式：socks5://账号:密码@IP:端口</Box><Button size="small" variant="text" onClick={() => setManualOpen(!manualOpen)} sx={{ ml: 'auto', textTransform: 'none', fontSize: 12.5, fontWeight: 600 }}>{manualOpen ? '收起' : '展开手动添加'}</Button>
+    <Button size="small" variant="outlined" color="warning" startIcon={<TextSnippetOutlined />} onClick={() => setManualOpen(!manualOpen)} sx={(theme) => ({ borderRadius: 1.5, textTransform: 'none', fontWeight: 600, fontSize: 12.5, transition: 'transform .15s ease', '&:hover': { transform: 'translateY(-1px)' } })}>SOCKS5 / HTTP(S) 点此手动添加</Button>
+    <Box sx={(theme) => ({ display: 'inline-flex', alignItems: 'center', px: 1.25, py: 0.55, borderRadius: 1.5, background: alpha(theme.palette.text.secondary, 0.07), color: alpha(theme.palette.text.secondary, 0.82), fontSize: 12 })}>也可链接一键导入，格式为：socks5://账号:密码@IP:端口。HTTP(S)同理</Box><Button size="small" variant="text" onClick={() => setManualOpen(!manualOpen)} sx={{ ml: 'auto', textTransform: 'none', fontSize: 12.5, fontWeight: 600 }}>{manualOpen ? '收起手动添加' : '展开手动添加'}</Button>
     
   </Box>
 </Box>
@@ -1217,7 +1217,7 @@ const onAddManual = async function () {
                onChange={(e) => setManual({ ...manual, pass: e.target.value })}
              />
              <Box component="span" sx={{ display: 'block', textAlign: 'center' }}>
-    如果您在使用本软件中遇到任何难以解决的问题，也可联系我们付费指导。<br />微信：jtysip<br />QQ：6194959
+    SOCKS5/HTTP(S)极易被墙，适合只玩游戏的用户，不玩游戏请选择其他节点！问题反馈请发送邮件到：email@nyxelen.com
   </Box>
              <Box sx={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'flex-end' }}>
                <Button variant="contained" size="small" onClick={onAddManual}>

@@ -153,6 +153,20 @@ async fn get_config_values() -> ConfigValues {
 }
 
 #[allow(clippy::cognitive_complexity)]
+
+/// 导入订阅·enhance 瘦身（第二步）：只收集/合并 proxies（订阅节点 + 自定义 proxies 覆盖），
+/// 不跑脚本/DNS/rules/providers。返回合并后的 proxies 列表。
+pub async fn enhance_proxies_only() -> Result<Vec<serde_yaml_ng::Value>> {
+    let profile = collect_profile_items().await?;
+    let config = process_seq_items(profile.config, profile.rules_item, profile.proxies_item, profile.groups_item);
+    let proxies = config
+        .get("proxies")
+        .and_then(|v| v.as_sequence())
+        .map(|s| s.to_vec())
+        .unwrap_or_default();
+    Ok(proxies)
+}
+
 async fn collect_profile_items() -> Result<ProfileItems> {
     let profiles = Config::profiles().await;
     let profiles_arc = profiles.latest_arc();
@@ -308,6 +322,7 @@ fn extend_changed_keys(exists_keys: &mut Vec<String>, config: &Mapping, res_conf
 /// App 权威的顶层控制面键:核心连接、监听端口、UI/托盘开关。
 /// 平台键随 cfg 门控;`dns.ipv6` 单独处理。
 const CONTROL_PLANE_KEYS: &[&str] = &[
+    "tun",
     "external-controller",
     #[cfg(unix)]
     "external-controller-unix",
@@ -397,6 +412,25 @@ async fn process_profile_items(
     (config, exists_keys, result_map)
 }
 
+/// 导入即用：收集配置里所有 socks5 节点的上游地址（裸 host，IP 或域名）。
+/// TUN 侧自己挑 IP 加 /32 塞 route-exclude；系统代理 bypass 直接用（bypass 认 IP 也认域名）。
+pub fn collect_socks5_upstreams(config: &Mapping) -> Vec<std::string::String> {
+    let mut upstreams: Vec<std::string::String> = Vec::new();
+    let Some(proxies) = config.get("proxies").and_then(|v| v.as_sequence()) else {
+        return upstreams;
+    };
+    for proxy in proxies {
+        let Some(proxy) = proxy.as_mapping() else { continue };
+        if proxy.get("type").and_then(|v| v.as_str()) != Some("socks5") {
+            continue;
+        }
+        if let Some(server) = proxy.get("server").and_then(|v| v.as_str()) {
+            upstreams.push(server.to_string());
+        }
+    }
+    upstreams
+}
+
 async fn merge_default_config(
     mut config: Mapping,
     clash_config: Mapping,
@@ -406,7 +440,7 @@ async fn merge_default_config(
     #[cfg(target_os = "linux")] tproxy_enabled: bool,
 ) -> Mapping {
     for (key, value) in clash_config.into_iter() {
-        if key.as_str() == Some("tun") {
+if key.as_str() == Some("tun") {
             let mut tun = config.get_mut("tun").map_or_else(Mapping::new, |val| {
                 val.as_mapping().cloned().unwrap_or_else(Mapping::new)
             });
@@ -414,6 +448,7 @@ async fn merge_default_config(
             for (key, value) in patch_tun.into_iter() {
                 tun.insert(key, value);
             }
+
             config.insert("tun".into(), tun.into());
         } else {
             if key.as_str() == Some("socks-port") && !socks_enabled {
@@ -739,6 +774,42 @@ pub async fn enhance() -> Result<(Mapping, HashSet<String>, HashMap<String, Resu
                         seq.insert(0, serde_yaml_ng::Value::String(rule.into()));
                     }
                 }
+            }
+        }
+        config
+    };
+
+    // 导入即用：把 socks5 上游排除出 TUN（放在 enhance 最后，确保所有 proxies 已合并）。
+    // 字段名 route-exclude-address（mihomo 标准）；IP 加 /32，域名解析成 IP 再加。
+    let config = {
+        let mut config = config;
+        let upstreams = collect_socks5_upstreams(&config);
+        if !upstreams.is_empty() {
+            if let Some(tun) = config.get_mut("tun").and_then(|v| v.as_mapping_mut()) {
+                let mut excludes: Vec<Value> = tun
+                    .get("route-exclude-address")
+                    .and_then(|v| v.as_sequence())
+                    .map(|s| s.to_vec())
+                    .unwrap_or_default();
+                for server in &upstreams {
+                    if let Ok(ip) = server.parse::<std::net::IpAddr>() {
+                        let cidr = match ip {
+                            std::net::IpAddr::V4(_) => format!("{ip}/32"),
+                            std::net::IpAddr::V6(_) => format!("{ip}/128"),
+                        };
+                        excludes.push(Value::from(cidr.as_str()));
+                    } else if let Ok(addrs) = tokio::net::lookup_host((server.as_str(), 0)).await {
+                        for addr in addrs {
+                            let ip = addr.ip();
+                            let cidr = match ip {
+                                std::net::IpAddr::V4(_) => format!("{ip}/32"),
+                                std::net::IpAddr::V6(_) => format!("{ip}/128"),
+                            };
+                            excludes.push(Value::from(cidr.as_str()));
+                        }
+                    }
+                }
+                tun.insert(Value::from("route-exclude-address"), Value::Sequence(excludes));
             }
         }
         config

@@ -63,14 +63,22 @@ async fn get_bypass() -> String {
     let verge = Config::verge().await.latest_arc();
     let use_default = verge.use_default_bypass.unwrap_or(true);
     let custom_bypass = verge.system_proxy_bypass.as_deref().unwrap_or("");
+    // 导入即用：把 socks5 上游也排除出系统代理，mihomo 连上游不被抓、不套娃。
+    let socks5_upstreams = Config::runtime().await.latest_arc().socks5_upstreams();
 
-    if custom_bypass.is_empty() {
-        DEFAULT_BYPASS.into()
-    } else if use_default {
-        format!("{DEFAULT_BYPASS},{custom_bypass}").into()
-    } else {
-        custom_bypass.into()
+    // 本文件顶部 `use smartstring::alias::String`，String 是 SmartString；
+    // 这里显式用 std String 收集，最后 .into() 转回 SmartString 返回。
+    let mut parts: Vec<std::string::String> = Vec::new();
+    if use_default || custom_bypass.is_empty() {
+        parts.push(DEFAULT_BYPASS.to_string());
     }
+    if !custom_bypass.is_empty() {
+        parts.push(custom_bypass.to_string());
+    }
+    if !socks5_upstreams.is_empty() {
+        parts.push(socks5_upstreams.join(","));
+    }
+    parts.join(",").into()
 }
 
 singleton!(Sysopt, SYSOPT);

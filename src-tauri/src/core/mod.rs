@@ -15,5 +15,6 @@ pub mod updater;
 pub mod validate;
 pub mod watchdog;
 pub mod win_uwp;
+pub mod wfp_outbound_lock;
 
 pub use self::{manager::CoreManager, timer::Timer, updater::SilentUpdater};

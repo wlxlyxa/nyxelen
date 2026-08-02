@@ -1,11 +1,11 @@
 [package]
-name = "nyxelen"
-version = "3.0.2"
+name = "wangzai"
+version = "3.0.0"
 description = "望仔"
 authors = ["zzzgydi", "Tunglies", "wonfen", "MystiPanda", "wlxlyxa"]
 license = "GPL-3.0-only"
 repository = "https://github.com/wlxlyxa/wangzai.git"
-default-run = "nyxelen"
+default-run = "wangzai"
 build = "build.rs"
 edition = "2024"
 rust-version = "1.95"
@@ -142,6 +142,7 @@ deelevate = { workspace = true }
 runas = "=1.2.0"
 winreg = "0.56.0"
 windows = { version = "0.62.2", features = ["Win32_Globalization", "Win32_NetworkManagement_IpHelper", "Win32_System_Threading", "Win32_Foundation", "Wdk_NetworkManagement_WindowsFilteringPlatform", "Win32_NetworkManagement_WindowsFilteringPlatform", "Win32_Security", "Win32_System_Rpc"] }
+
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-autostart = "2.5.1"
 tauri-plugin-global-shortcut = "2.3.2"

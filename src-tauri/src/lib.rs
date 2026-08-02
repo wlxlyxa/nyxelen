@@ -158,6 +158,7 @@ mod app_init {
             cmd::stop_core,
             cmd::restart_core,
             cmd::get_running_processes,
+            cmd::resolve_shortcut,
             cmd::get_running_mode,
             cmd::get_auto_launch_status,
             cmd::entry_lightweight_mode,
@@ -181,6 +182,7 @@ mod app_init {
             cmd::invoke_uwp_tool,
             cmd::copy_clash_env,
             cmd::sync_tray_proxy_selection,
+            cmd::apply_process_rules_fast,
             cmd::save_dns_config,
             cmd::apply_dns_config,
             cmd::check_dns_config_exists,
@@ -245,6 +247,13 @@ mod app_init {
             cmd::list_physical_nics,
             cmd::check_physical_nic_lock_status,
             cmd::disable_physical_nic_lock,
+            crate::core::wfp_outbound_lock::enable_physical_nic_lock_cmd,
+            crate::core::wfp_outbound_lock::disable_physical_nic_lock_cmd,
+            crate::core::wfp_outbound_lock::wfp_lock_selftest,
+            crate::core::wfp_outbound_lock::list_physical_nics_indexed_cmd,
+            crate::core::wfp_outbound_lock::is_physical_nic_locked_cmd,
+            crate::feat::proxy::check_tun_adapter_present_cmd,
+            crate::feat::proxy::force_release_tun_adapter_cmd,
             cmd::enable_ncsi_protection,
             cmd::disable_ncsi_protection,
             cmd::check_ncsi_protection_status,
@@ -292,7 +301,7 @@ pub fn run() {
                 logging!(
                     error,
                     Type::Setup,
-                    "setup 阶段 panic（{}）—— 降级继续启动: {}",
+                    "setup 阶段 panic({})—— 降级继续启动: {}",
                     stage,
                     msg
                 );
@@ -338,9 +347,9 @@ pub fn run() {
         })
         .invoke_handler(app_init::generate_handlers());
 
-    // macOS 内存压力下 WKWebView 渲染进程可能被系统终止（表现为白屏），
-    // 注册恢复钩子：清理孤儿 WebSocket 订阅防止内存泄漏；窗口可见时立即 reload
-    // 恢复页面，不可见时延迟到用户下次打开窗口再 reload。
+    // macOS 内存压力下 WKWebView 渲染进程可能被系统终止(表现为白屏),
+    // 注册恢复钩子:清理孤儿 WebSocket 订阅防止内存泄漏;窗口可见时立即 reload
+    // 恢复页面,不可见时延迟到用户下次打开窗口再 reload。
     #[cfg(target_os = "macos")]
     let builder = builder.on_web_content_process_terminate(resolve::window::on_web_content_process_terminated);
 
@@ -360,7 +369,7 @@ pub fn run() {
 
         pub fn handle_ready_resumed(_app_handle: &AppHandle) {
             if handle::Handle::global().is_exiting() {
-                logging!(debug, Type::System, "应用正在退出，跳过处理");
+                logging!(debug, Type::System, "应用正在退出,跳过处理");
                 return;
             }
 
@@ -507,7 +516,7 @@ pub fn run() {
                 event_handlers::handle_window_close(&event);
             }
             tauri::WindowEvent::Focused(focused) => {
-                // 兜底：原生取消最小化只触发 Focused、不走 activate_window（macOS）
+                // 兜底:原生取消最小化只触发 Focused、不走 activate_window(macOS)
                 #[cfg(target_os = "macos")]
                 if focused {
                     crate::utils::resolve::window::reload_main_window_if_needed();

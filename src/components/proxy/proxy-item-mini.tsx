@@ -1,5 +1,5 @@
 import { CheckCircleOutlineRounded } from '@mui/icons-material'
-import { alpha, Box, ListItemButton, styled, Typography } from '@mui/material'
+import { alpha, Box, ListItemButton, styled, Tooltip, Typography } from '@mui/material'
 import { useTranslation } from 'react-i18next'
 
 import { BaseLoading } from '@/components/base'
@@ -21,9 +21,10 @@ export const ProxyItemMini = (props: Props) => {
   const { t } = useTranslation()
 
   // -1/<=0 为不显示，-2 为 loading
-  const { delayValue, isPreset, timeout, onDelay } = useProxyDelayState(
+  const { delayValue, isPreset, timeout, onDelay , consecutiveTimeouts} = useProxyDelayState(
     proxy,
     group.name,
+    
   )
 
   return (
@@ -177,8 +178,8 @@ export const ProxyItemMini = (props: Props) => {
           </Widget>
         )}
 
-        {delayValue >= 0 && (
-          // 显示延迟
+        {delayValue > 0 && delayValue < timeout && (
+          // 正常延迟：保持原样
           <Widget
             className="the-delay"
             onClick={(e) => {
@@ -196,6 +197,43 @@ export const ProxyItemMini = (props: Props) => {
           >
             {delayManager.formatDelay(delayValue, timeout)}
           </Widget>
+        )}
+
+        {(delayValue === 0 || delayValue >= timeout) && delayValue !== -2 && (
+          // 块1：timeout 不再甩红死刑。单次→琥珀"—"慢呼吸+人话；连续≥3→红"暂不可用"。
+          <Tooltip
+            arrow
+            title={
+              consecutiveTimeouts >= 3
+                ? '连续多次探测超时，该节点暂不可用'
+                : '探测受限 · 实际连接或仍可用（代理模式下测速易受干扰）'
+            }
+          >
+            <Widget
+              className="the-delay the-delay-timeout"
+              onClick={(e) => {
+                if (proxy.provider) return
+                e.preventDefault()
+                e.stopPropagation()
+                onDelay()
+              }}
+              sx={({ palette }) => ({
+                color: consecutiveTimeouts >= 3 ? 'error.main' : 'warning.main',
+                ...(!proxy.provider
+                  ? { ':hover': { bgcolor: alpha(palette.primary.main, 0.15) } }
+                  : {}),
+                ...(consecutiveTimeouts < 3 && {
+                  '@keyframes nyxTimeoutBreathe': {
+                    '0%, 100%': { opacity: 1 },
+                    '50%': { opacity: 0.45 },
+                  },
+                  animation: 'nyxTimeoutBreathe 2.2s ease-in-out infinite',
+                }),
+              })}
+            >
+              {consecutiveTimeouts >= 3 ? '暂不可用' : '—'}
+            </Widget>
+          </Tooltip>
         )}
         {proxy.type !== 'Direct' &&
           delayValue !== -2 &&
