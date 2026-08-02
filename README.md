@@ -18,7 +18,7 @@ Nyxelen（隐枢）是一款基于 [clash-verge-rev](https://github.com/clash-ve
 
 🔒 **防泄漏套件** —— 把那些"代理开着却仍在泄露"的隐蔽通道逐个堵上：
 
-- WebRTC 防泄漏（Chrome / Edge 策略级拦截；需配合「系统代理 + 虚拟网卡」同时开启）
+- WebRTC 防泄漏（Chrome / Edge 策略级拦截
 - DoH 加密 DNS 阻断 + 关闭 Windows 智能多宿主名称解析（SMHNR）
 - IPv6 隧道封装与防泄漏
 - NCSI 直连阻断、QUIC / HTTP3 阻断
