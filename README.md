@@ -2,7 +2,7 @@
 
 # NYXELEN · 隐枢
 
-> 夜再深，也替你守着这条连接。
+> 让连接，隐于无形。
 
 [![Based on Clash Verge Rev](https://img.shields.io/badge/based%20on-clash--verge--rev-5B6B82)](https://github.com/clash-verge-rev/clash-verge-rev)
 [![License](https://img.shields.io/badge/license-GPL--3.0-E8B04B)](LICENSE)
